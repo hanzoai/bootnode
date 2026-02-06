@@ -8,21 +8,25 @@ import { Toaster } from "@/components/ui/sonner"
 import "@/app/globals.css"
 
 // Brand-aware metadata - uses NEXT_PUBLIC_BRAND env var
-const brandName = process.env.NEXT_PUBLIC_BRAND === "hanzo" ? "Hanzo" :
+const brandName = process.env.NEXT_PUBLIC_BRAND === "bootnode" ? "Bootnode" :
+                  process.env.NEXT_PUBLIC_BRAND === "hanzo" ? "Hanzo Web3" :
                   process.env.NEXT_PUBLIC_BRAND === "lux" ? "Lux Network" :
-                  process.env.NEXT_PUBLIC_BRAND === "zoo" ? "Zoo Labs" : "Hanzo"
+                  process.env.NEXT_PUBLIC_BRAND === "zoo" ? "Zoo Labs" : "Bootnode"
 
-const brandTagline = process.env.NEXT_PUBLIC_BRAND === "hanzo" ? "Web3 Infrastructure" :
+const brandTagline = process.env.NEXT_PUBLIC_BRAND === "bootnode" ? "Blockchain Infrastructure" :
+                     process.env.NEXT_PUBLIC_BRAND === "hanzo" ? "Web3 Infrastructure" :
                      process.env.NEXT_PUBLIC_BRAND === "lux" ? "Next-Gen Blockchain Infrastructure" :
-                     process.env.NEXT_PUBLIC_BRAND === "zoo" ? "Decentralized AI Infrastructure" : "Web3 Infrastructure"
+                     process.env.NEXT_PUBLIC_BRAND === "zoo" ? "Decentralized AI Infrastructure" : "Blockchain Infrastructure"
 
-const brandDomain = process.env.NEXT_PUBLIC_BRAND === "hanzo" ? "web3.hanzo.ai" :
+const brandDomain = process.env.NEXT_PUBLIC_BRAND === "bootnode" ? "bootno.de" :
+                    process.env.NEXT_PUBLIC_BRAND === "hanzo" ? "web3.hanzo.ai" :
                     process.env.NEXT_PUBLIC_BRAND === "lux" ? "web3.lux.network" :
-                    process.env.NEXT_PUBLIC_BRAND === "zoo" ? "web3.zoo.ngo" : "web3.hanzo.ai"
+                    process.env.NEXT_PUBLIC_BRAND === "zoo" ? "web3.zoo.ngo" : "bootno.de"
 
-const brandIcon = process.env.NEXT_PUBLIC_BRAND === "hanzo" ? "/logo/hanzo-icon.svg" :
+const brandIcon = process.env.NEXT_PUBLIC_BRAND === "bootnode" ? "/logo/bootnode-icon.svg" :
+                  process.env.NEXT_PUBLIC_BRAND === "hanzo" ? "/logo/hanzo-icon.svg" :
                   process.env.NEXT_PUBLIC_BRAND === "lux" ? "/logo/lux-icon.svg" :
-                  process.env.NEXT_PUBLIC_BRAND === "zoo" ? "/logo/zoo-icon.svg" : "/logo/hanzo-icon.svg"
+                  process.env.NEXT_PUBLIC_BRAND === "zoo" ? "/logo/zoo-icon.svg" : "/logo/bootnode-icon.svg"
 
 export const metadata: Metadata = {
   title: {
