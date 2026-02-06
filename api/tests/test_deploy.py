@@ -60,12 +60,12 @@ class TestServiceStatus:
             ready_replicas=2,
             cpu_usage=25.5,
             memory_usage=512.0,
-            image="bootnode/api:latest",
+            image="ghcr.io/hanzoai/bootnode:api-latest",
             started_at="2024-01-15T10:00:00Z",
         )
         assert status.cpu_usage == 25.5
         assert status.memory_usage == 512.0
-        assert status.image == "bootnode/api:latest"
+        assert status.image == "ghcr.io/hanzoai/bootnode:api-latest"
 
 
 class TestDeployTarget:

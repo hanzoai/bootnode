@@ -26,7 +26,7 @@ spec:
       serviceAccountName: bootnode-indexer
       containers:
         - name: indexer
-          image: bootnode/indexer:latest
+          image: ghcr.io/hanzoai/bootnode:indexer-latest
           imagePullPolicy: Always
           ports:
             - name: http

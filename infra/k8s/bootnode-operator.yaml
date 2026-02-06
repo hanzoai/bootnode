@@ -28,7 +28,7 @@ spec:
       serviceAccountName: bootnode-operator
       containers:
       - name: operator
-        image: bootnode/operator:2.0.0
+        image: ghcr.io/hanzoai/bootnode:operator-2.0.0
         imagePullPolicy: Always
         env:
         - name: OPERATOR_NAMESPACE

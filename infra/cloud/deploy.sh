@@ -55,14 +55,14 @@ build_images() {
   cd "$ROOT_DIR"
 
   # Build API
-  docker build -t bootnode/api:latest -f api/Dockerfile api/
+  docker build -t ghcr.io/hanzoai/bootnode:api-latest -f api/Dockerfile api/
 
   # Build Web
-  docker build -t bootnode/web:latest -f web/Dockerfile web/
+  docker build -t ghcr.io/hanzoai/bootnode:web-latest -f web/Dockerfile web/
 
   # Build Indexer (if exists)
   if [ -d "indexer" ]; then
-    docker build -t bootnode/indexer:latest -f indexer/Dockerfile indexer/
+    docker build -t ghcr.io/hanzoai/bootnode:indexer-latest -f indexer/Dockerfile indexer/
   fi
 
   log_info "Images built successfully"
@@ -113,10 +113,10 @@ deploy_aws() {
   aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
   for image in api web indexer; do
-    aws ecr describe-repositories --repository-names bootnode/$image 2>/dev/null || \
-      aws ecr create-repository --repository-name bootnode/$image
-    docker tag bootnode/$image:latest $ECR_REGISTRY/bootnode/$image:latest
-    docker push $ECR_REGISTRY/bootnode/$image:latest
+    aws ecr describe-repositories --repository-names hanzoai/bootnode 2>/dev/null || \
+      aws ecr create-repository --repository-name hanzoai/bootnode
+    docker tag ghcr.io/hanzoai/bootnode:$image-latest $ECR_REGISTRY/hanzoai/bootnode:$image-latest
+    docker push $ECR_REGISTRY/hanzoai/bootnode:$image-latest
   done
 
   # Deploy to Kubernetes
@@ -147,8 +147,8 @@ deploy_gcp() {
   # Push images to GCR
   log_info "Pushing images to GCR..."
   for image in api web indexer; do
-    docker tag bootnode/$image:latest gcr.io/$PROJECT_ID/bootnode-$image:latest
-    docker push gcr.io/$PROJECT_ID/bootnode-$image:latest
+    docker tag ghcr.io/hanzoai/bootnode:$image-latest gcr.io/$PROJECT_ID/hanzoai-bootnode:$image-latest
+    docker push gcr.io/$PROJECT_ID/hanzoai-bootnode:$image-latest
   done
 
   # Deploy to Kubernetes
@@ -180,8 +180,8 @@ deploy_azure() {
   az acr login --name $ACR_NAME
 
   for image in api web indexer; do
-    docker tag bootnode/$image:latest $ACR_NAME.azurecr.io/bootnode/$image:latest
-    docker push $ACR_NAME.azurecr.io/bootnode/$image:latest
+    docker tag ghcr.io/hanzoai/bootnode:$image-latest $ACR_NAME.azurecr.io/hanzoai/bootnode:$image-latest
+    docker push $ACR_NAME.azurecr.io/hanzoai/bootnode:$image-latest
   done
 
   # Deploy to Kubernetes
@@ -210,8 +210,8 @@ deploy_digitalocean() {
   REGISTRY=$(doctl registry get --format RegistryName --no-header)
 
   for image in api web indexer; do
-    docker tag bootnode/$image:latest registry.digitalocean.com/$REGISTRY/bootnode-$image:latest
-    docker push registry.digitalocean.com/$REGISTRY/bootnode-$image:latest
+    docker tag ghcr.io/hanzoai/bootnode:$image-latest registry.digitalocean.com/$REGISTRY/hanzoai-bootnode:$image-latest
+    docker push registry.digitalocean.com/$REGISTRY/hanzoai-bootnode:$image-latest
   done
 
   # Deploy to Kubernetes

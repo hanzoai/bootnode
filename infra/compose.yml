@@ -88,7 +88,7 @@ services:
     build:
       context: ../api
       dockerfile: Dockerfile
-    image: bootnode/api:latest
+    image: ghcr.io/hanzoai/bootnode:api-latest
     container_name: bootnode-api
     restart: unless-stopped
     environment:
@@ -130,7 +130,7 @@ services:
     build:
       context: ../indexer
       dockerfile: Dockerfile
-    image: bootnode/indexer:latest
+    image: ghcr.io/hanzoai/bootnode:indexer-latest
     container_name: bootnode-indexer
     restart: unless-stopped
     environment:
@@ -169,7 +169,7 @@ services:
     build:
       context: ../api
       dockerfile: Dockerfile
-    image: bootnode/api:latest
+    image: ghcr.io/hanzoai/bootnode:api-latest
     container_name: bootnode-webhook-worker
     restart: unless-stopped
     command: ["python", "-m", "bootnode.workers.webhook"]
@@ -191,7 +191,7 @@ services:
     build:
       context: ../bundler
       dockerfile: Dockerfile
-    image: bootnode/bundler:latest
+    image: ghcr.io/hanzoai/bootnode:bundler-latest
     container_name: bootnode-bundler
     restart: unless-stopped
     environment:
@@ -216,7 +216,7 @@ services:
     build:
       context: ../web
       dockerfile: Dockerfile
-    image: bootnode/web:latest
+    image: ghcr.io/hanzoai/bootnode:web-latest
     container_name: bootnode-web
     restart: unless-stopped
     environment:

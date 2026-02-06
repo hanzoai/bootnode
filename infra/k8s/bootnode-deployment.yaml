@@ -217,7 +217,7 @@ spec:
     spec:
       initContainers:
       - name: db-migrate
-        image: bootnode/api:latest
+        image: ghcr.io/hanzoai/bootnode:api-latest
         command: ["python", "-m", "alembic", "upgrade", "head"]
         envFrom:
         - configMapRef:
@@ -226,7 +226,7 @@ spec:
             name: bootnode-secrets
       containers:
       - name: api
-        image: bootnode/api:latest
+        image: ghcr.io/hanzoai/bootnode:api-latest
         ports:
         - containerPort: 8000
         envFrom:
@@ -286,7 +286,7 @@ spec:
     spec:
       containers:
       - name: web
-        image: bootnode/web:latest
+        image: ghcr.io/hanzoai/bootnode:web-latest
         ports:
         - containerPort: 3000
         env:

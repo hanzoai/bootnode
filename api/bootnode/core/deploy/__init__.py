@@ -11,7 +11,7 @@ Usage:
     from bootnode.core.deploy import get_deployer, ServiceType
 
     deployer = get_deployer()
-    await deployer.deploy(ServiceType.API, "bootnode/api:latest", replicas=2)
+    await deployer.deploy(ServiceType.API, "ghcr.io/hanzoai/bootnode:api-latest", replicas=2)
     status = await deployer.status(ServiceType.API)
     async for line in deployer.logs(ServiceType.API, tail=50):
         print(line)
