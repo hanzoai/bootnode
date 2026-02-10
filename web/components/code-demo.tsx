@@ -1,6 +1,6 @@
 "use client"
 
-import * as React from "react"
+import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -16,11 +16,11 @@ const METHODS = [
 ]
 
 export function CodeDemo() {
-  const [selectedChain, setSelectedChain] = React.useState("Ethereum")
-  const [selectedMethod, setSelectedMethod] = React.useState("eth_getBlockByNumber")
-  const [copied, setCopied] = React.useState(false)
-  const [response, setResponse] = React.useState<string | null>(null)
-  const [loading, setLoading] = React.useState(false)
+  const [selectedChain, setSelectedChain] = useState("Ethereum")
+  const [selectedMethod, setSelectedMethod] = useState("eth_getBlockByNumber")
+  const [copied, setCopied] = useState(false)
+  const [response, setResponse] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   const brand = getBrand()
   // Use api.web3.hanzo.ai for Hanzo branding (brand.name is "Hanzo Web3")

@@ -1,7 +1,6 @@
 "use client"
 
-import * as React from "react"
-import { Suspense } from "react"
+import { useState, useEffect, Suspense, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -18,15 +17,15 @@ function LoginForm() {
   const { user, isLoading: authLoading, isProduction, login, register } = useAuth()
   const brand = useBrand()
 
-  const [email, setEmail] = React.useState("")
-  const [password, setPassword] = React.useState("")
-  const [name, setName] = React.useState("")
-  const [loading, setLoading] = React.useState(false)
-  const [error, setError] = React.useState("")
-  const [mode, setMode] = React.useState<"login" | "register">("login")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [name, setName] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [mode, setMode] = useState<"login" | "register">("login")
 
   // Redirect if already authenticated
-  React.useEffect(() => {
+  useEffect(() => {
     if (!authLoading && user) {
       const returnUrl = searchParams.get("returnUrl") || "/dashboard"
       router.push(returnUrl)
@@ -34,7 +33,7 @@ function LoginForm() {
   }, [user, authLoading, router, searchParams])
 
   // Production mode: Redirect to brand-specific IAM
-  React.useEffect(() => {
+  useEffect(() => {
     if (isProduction && !authLoading && !user) {
       const returnUrl = searchParams.get("returnUrl") || "/dashboard"
       const callbackUrl = `${window.location.origin}/auth/callback`
@@ -44,7 +43,7 @@ function LoginForm() {
     }
   }, [isProduction, authLoading, user, searchParams, brand.iam.url])
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError("")

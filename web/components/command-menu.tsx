@@ -1,6 +1,6 @@
 "use client"
 
-import * as React from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Command } from "cmdk"
 import {
@@ -38,11 +38,11 @@ const pages = [
 ]
 
 export function CommandMenu() {
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = useState(false)
   const router = useRouter()
   const brand = useBrand()
 
-  React.useEffect(() => {
+  useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || e.key === "/") {
         // Don't trigger if typing in an input
