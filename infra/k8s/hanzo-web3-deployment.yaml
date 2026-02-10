@@ -26,7 +26,7 @@ spec:
     spec:
       containers:
         - name: web
-          image: ghcr.io/hanzoai/bootnode:web-hanzo-latest
+          image: ghcr.io/hanzoai/bootnode:web-latest
           imagePullPolicy: Always
           ports:
             - name: http
