@@ -133,7 +133,7 @@ const brands: Record<string, BrandConfig> = {
       github: "https://github.com/luxfi",
     },
     iam: {
-      url: "https://hanzo.id",
+      url: "https://lux.id",
       clientId: "lux-cloud",
       domain: "lux.id",
     },
