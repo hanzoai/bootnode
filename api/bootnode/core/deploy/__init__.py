@@ -21,6 +21,7 @@ from bootnode.core.deploy.base import DeployTarget, ServiceStatus, ServiceType
 from bootnode.core.deploy.docker import DockerDeployer
 from bootnode.core.deploy.factory import clear_deployer_cache, get_deployer
 from bootnode.core.deploy.kubernetes import KubernetesDeployer
+from bootnode.core.deploy.helm import HelmDeployer
 from bootnode.core.deploy.process import ProcessDeployer
 
 __all__ = [
@@ -30,6 +31,7 @@ __all__ = [
     "ServiceType",
     # Deployers
     "DockerDeployer",
+    "HelmDeployer",
     "KubernetesDeployer",
     "ProcessDeployer",
     # Factory

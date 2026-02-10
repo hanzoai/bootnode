@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Server, Box, HardDrive, Copy, Loader2 } from "lucide-react"
+import { Server, Box, HardDrive, Copy, Loader2, Shield } from "lucide-react"
 import Link from "next/link"
 
 interface InfraStats {
@@ -109,6 +109,29 @@ export default function InfrastructurePage() {
 
       {/* Infrastructure Categories */}
       <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Lux Validators
+            </CardTitle>
+            <CardDescription>
+              Deploy and manage Lux validator fleets
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Run fleets of luxd validators across Kubernetes clusters.
+              Mainnet, testnet, and devnet support with chain tracking.
+            </p>
+            <Button variant="outline" className="w-full" asChild>
+              <Link href="/dashboard/infrastructure/lux">
+                Manage Fleets
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

@@ -126,6 +126,10 @@ class Settings(BaseSettings):
     deploy_k8s_namespace: str = "bootnode"
     deploy_k8s_context: str = ""
 
+    # Helm / Lux Fleet
+    helm_chart_path: str = "/opt/charts/lux"
+    helm_binary: str = "helm"
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
