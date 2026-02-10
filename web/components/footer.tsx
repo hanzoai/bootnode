@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { Separator } from "@/components/ui/separator"
 import { BrandLogo, useBrand } from "@/components/brand-logo"
+import { ExternalLink } from "lucide-react"
 
 const footerLinks = {
   products: [
@@ -28,14 +29,6 @@ const footerLinks = {
     { name: "SDKs", href: "/docs/sdks" },
     { name: "Tutorials", href: "/docs/tutorials" },
     { name: "llms.txt", href: "/llms.txt" },
-  ],
-  company: [
-    { name: "About", href: "/about" },
-    { name: "Blog", href: "/blog" },
-    { name: "Careers", href: "/careers" },
-    { name: "Contact", href: "/contact" },
-    { name: "Status", href: "https://status.hanzo.ai" },
-    { name: "Security", href: "/security" },
   ],
 }
 
@@ -107,18 +100,21 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Company */}
+          {/* Ecosystem (brand-specific) */}
           <div>
-            <h3 className="font-semibold">Company</h3>
+            <h3 className="font-semibold">Ecosystem</h3>
             <ul className="mt-4 space-y-2">
-              {footerLinks.company.map((link) => (
+              {brand.footerLinks.map((link) => (
                 <li key={link.name}>
-                  <Link
+                  <a
                     href={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground"
+                    target={link.external ? "_blank" : undefined}
+                    rel={link.external ? "noopener noreferrer" : undefined}
+                    className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
                   >
                     {link.name}
-                  </Link>
+                    {link.external && <ExternalLink className="h-3 w-3" />}
+                  </a>
                 </li>
               ))}
             </ul>

@@ -19,11 +19,13 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Production build-time environment variables
-ARG NEXT_PUBLIC_BRAND=hanzo
-ARG NEXT_PUBLIC_API_URL=https://api.web3.hanzo.ai
-ARG NEXT_PUBLIC_WS_URL=wss://ws.web3.hanzo.ai
-ARG NEXT_PUBLIC_IAM_URL=https://iam.hanzo.ai
-ARG NEXT_PUBLIC_IAM_CLIENT_ID=hanzo-web3
+# Brand is auto-detected from domain at runtime (see lib/brand.ts)
+# Override via K8s env vars: NEXT_PUBLIC_BRAND, NEXT_PUBLIC_API_URL, etc.
+ARG NEXT_PUBLIC_BRAND=bootnode
+ARG NEXT_PUBLIC_API_URL=https://api.bootno.de
+ARG NEXT_PUBLIC_WS_URL=wss://ws.bootno.de
+ARG NEXT_PUBLIC_IAM_URL=https://iam.bootno.de
+ARG NEXT_PUBLIC_IAM_CLIENT_ID=bootnode-web
 
 ENV NEXT_PUBLIC_BRAND=$NEXT_PUBLIC_BRAND
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL

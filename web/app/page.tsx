@@ -20,9 +20,8 @@ import {
   Zap,
 } from "lucide-react"
 
-const brand = getBrand()
-
 export default function HomePage() {
+  const brand = getBrand()
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
@@ -38,7 +37,10 @@ export default function HomePage() {
             </Badge>
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
               Build anything{" "}
-              <span className="bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">
+              <span
+                className="bg-clip-text text-transparent"
+                style={{ backgroundImage: `linear-gradient(to right, ${brand.colors.accent}, ${brand.colors.accentEnd})` }}
+              >
                 onchain
               </span>
             </h1>

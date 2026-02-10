@@ -16,6 +16,7 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, isLoading: authLoading, isProduction, login, register } = useAuth()
+  const brand = useBrand()
 
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -31,6 +32,17 @@ function LoginForm() {
       router.push(returnUrl)
     }
   }, [user, authLoading, router, searchParams])
+
+  // Production mode: Redirect to brand-specific IAM
+  React.useEffect(() => {
+    if (isProduction && !authLoading && !user) {
+      const returnUrl = searchParams.get("returnUrl") || "/dashboard"
+      const callbackUrl = `${window.location.origin}/auth/callback`
+      const iamUrl = brand.iam.url
+      const authRedirect = `${iamUrl}/login?redirect_uri=${encodeURIComponent(callbackUrl)}&state=${encodeURIComponent(returnUrl)}`
+      window.location.href = authRedirect
+    }
+  }, [isProduction, authLoading, user, searchParams, brand.iam.url])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -60,18 +72,6 @@ function LoginForm() {
     )
   }
 
-  const brand = useBrand()
-
-  // Production mode: Redirect directly to Hanzo ID
-  React.useEffect(() => {
-    if (isProduction && !authLoading && !user) {
-      const returnUrl = searchParams.get("returnUrl") || "/dashboard"
-      const callbackUrl = `${window.location.origin}/auth/callback`
-      const hanzoIdUrl = `https://hanzo.id/login?redirect_uri=${encodeURIComponent(callbackUrl)}&state=${encodeURIComponent(returnUrl)}`
-      window.location.href = hanzoIdUrl
-    }
-  }, [isProduction, authLoading, user, searchParams])
-
   // Show loading while redirecting in production
   if (isProduction) {
     return (
@@ -81,7 +81,7 @@ function LoginForm() {
         </Link>
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Redirecting to Hanzo ID...</p>
+          <p className="text-muted-foreground">Redirecting to {brand.name} login...</p>
         </div>
       </div>
     )

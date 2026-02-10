@@ -5,7 +5,6 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -19,11 +18,11 @@ import {
   Globe,
   Layers,
   Menu,
-  Search,
   Wallet,
   X,
 } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
+import { CommandMenu } from "@/components/command-menu"
 
 const products = [
   {
@@ -150,17 +149,7 @@ export function Navbar() {
 
         {/* Search + Actions */}
         <div className="ml-auto flex items-center gap-4">
-          <div className="relative hidden md:block">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="w-[200px] pl-9 lg:w-[300px]"
-            />
-            <kbd className="pointer-events-none absolute right-3 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
-              /
-            </kbd>
-          </div>
+          <CommandMenu />
           <Button variant="ghost" size="sm" asChild className="hidden sm:flex">
             <Link href="/login">Sign In</Link>
           </Button>

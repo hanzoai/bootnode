@@ -178,39 +178,16 @@ jobs:
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
 
-      - name: Build and push Bootnode Web image
+      - name: Build and push Web image (universal, brand selected at runtime)
         uses: docker/build-push-action@v5
         with:
           context: ./web
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:web-latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:web-bootnode-${{ steps.sha.outputs.short }}
-          build-args: |
-            NEXT_PUBLIC_BRAND=bootnode
-            NEXT_PUBLIC_API_URL=https://api.bootno.de
-            NEXT_PUBLIC_WS_URL=wss://ws.bootno.de
-            NEXT_PUBLIC_IAM_URL=https://iam.hanzo.ai
-            NEXT_PUBLIC_IAM_CLIENT_ID=bootnode-platform
-          cache-from: type=gha,scope=web-bootnode
-          cache-to: type=gha,mode=max,scope=web-bootnode
-
-      - name: Build and push Hanzo Web3 image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./web
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:web-hanzo-latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:web-hanzo-${{ steps.sha.outputs.short }}
-          build-args: |
-            NEXT_PUBLIC_BRAND=hanzo
-            NEXT_PUBLIC_API_URL=https://api.web3.hanzo.ai
-            NEXT_PUBLIC_WS_URL=wss://ws.web3.hanzo.ai
-            NEXT_PUBLIC_IAM_URL=https://iam.hanzo.ai
-            NEXT_PUBLIC_IAM_CLIENT_ID=hanzo-web3
-          cache-from: type=gha,scope=web-hanzo
-          cache-to: type=gha,mode=max,scope=web-hanzo
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:web-${{ steps.sha.outputs.short }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
 
   deploy:
     runs-on: ubuntu-latest

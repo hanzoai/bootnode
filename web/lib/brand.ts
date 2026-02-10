@@ -11,9 +11,12 @@ export type BrandConfig = {
   favicon: string
   domain: string
   statusUrl: string
+  defaultTheme: "light" | "dark"
   colors: {
     primary: string
     primaryForeground: string
+    accent: string           // Hero gradient start
+    accentEnd: string        // Hero gradient end
   }
   social: {
     twitter?: string
@@ -25,6 +28,11 @@ export type BrandConfig = {
     clientId: string
     domain: string // e.g., hanzo.id, zoo.id
   }
+  footerLinks: {
+    name: string
+    href: string
+    external?: boolean
+  }[]
 }
 
 // Brand presets
@@ -39,19 +47,26 @@ const brands: Record<string, BrandConfig> = {
     favicon: "/logo/bootnode-icon.svg",
     domain: "bootno.de",
     statusUrl: "https://status.bootno.de",
+    defaultTheme: "light",
     colors: {
       primary: "#000000",
       primaryForeground: "#ffffff",
+      accent: "#3b82f6",     // blue-500
+      accentEnd: "#06b6d4",  // cyan-500
     },
     social: {
       twitter: "https://twitter.com/bootnode",
       github: "https://github.com/bootnode",
     },
     iam: {
-      url: "https://iam.hanzo.ai",
+      url: "https://hanzo.id",
       clientId: "bootnode-platform",
       domain: "hanzo.id",
     },
+    footerLinks: [
+      { name: "GitHub", href: "https://github.com/bootnode", external: true },
+      { name: "Twitter", href: "https://twitter.com/bootnode", external: true },
+    ],
   },
   hanzo: {
     name: "Hanzo Web3",
@@ -63,9 +78,12 @@ const brands: Record<string, BrandConfig> = {
     favicon: "/logo/hanzo-icon.svg",
     domain: "web3.hanzo.ai",
     statusUrl: "https://status.hanzo.ai",
+    defaultTheme: "dark",
     colors: {
-      primary: "#000000",
+      primary: "#fd4444",
       primaryForeground: "#ffffff",
+      accent: "#fd4444",     // hanzo red
+      accentEnd: "#ff6b6b",  // lighter red
     },
     social: {
       twitter: "https://twitter.com/hanaboratory",
@@ -77,30 +95,48 @@ const brands: Record<string, BrandConfig> = {
       clientId: "hanzo-web3",
       domain: "hanzo.id",
     },
+    footerLinks: [
+      { name: "Hanzo AI", href: "https://hanzo.ai", external: true },
+      { name: "Hanzo Cloud", href: "https://cloud.hanzo.ai", external: true },
+      { name: "Hanzo Chat", href: "https://chat.hanzo.ai", external: true },
+      { name: "Hanzo Network", href: "https://hanzo.network", external: true },
+      { name: "GitHub", href: "https://github.com/hanzoai", external: true },
+    ],
   },
   lux: {
     name: "Lux Cloud",
     tagline: "Next-Gen Blockchain Infrastructure",
     description: "High-performance blockchain infrastructure for the Lux Network ecosystem.",
-    logo: "/logo/lux-logo.svg",
+    logo: "/logo/lux-wordmark-dark.svg",
     logoIcon: "/logo/lux-icon.svg",
-    logoWhite: "/logo/lux-logo-white.svg",
+    logoWhite: "/logo/lux-wordmark-white.svg",
     favicon: "/logo/lux-icon.svg",
-    domain: "lux.cloud",
-    statusUrl: "https://status.lux.cloud",
+    domain: "cloud.lux.network",
+    statusUrl: "https://status.lux.network",
+    defaultTheme: "dark",
     colors: {
-      primary: "#8b5cf6",
-      primaryForeground: "#ffffff",
+      primary: "#ffffff",
+      primaryForeground: "#000000",
+      accent: "#a8a8a8",     // monochrome silver
+      accentEnd: "#ffffff",  // white
     },
     social: {
       twitter: "https://twitter.com/luxdefi",
       github: "https://github.com/luxfi",
     },
     iam: {
-      url: "https://lux.id",
+      url: "https://hanzo.id",
       clientId: "lux-cloud",
       domain: "lux.id",
     },
+    footerLinks: [
+      { name: "Lux Network", href: "https://lux.network", external: true },
+      { name: "Lux Explorer", href: "https://explore.lux.network", external: true },
+      { name: "Lux Bridge", href: "https://bridge.lux.network", external: true },
+      { name: "Lux Wallet", href: "https://wallet.lux.network", external: true },
+      { name: "Lux Exchange", href: "https://exchange.lux.network", external: true },
+      { name: "GitHub", href: "https://github.com/luxfi", external: true },
+    ],
   },
   zoo: {
     name: "Zoo Labs",
@@ -112,44 +148,56 @@ const brands: Record<string, BrandConfig> = {
     favicon: "/logo/zoo-icon.svg",
     domain: "web3.zoo.ngo",
     statusUrl: "https://status.zoo.ngo",
+    defaultTheme: "dark",
     colors: {
       primary: "#00cc66",
       primaryForeground: "#ffffff",
+      accent: "#00cc66",     // emerald green
+      accentEnd: "#10b981",  // lighter green
     },
     social: {
       twitter: "https://twitter.com/zoolabs",
       github: "https://github.com/zoolabs",
     },
     iam: {
-      url: "https://iam.hanzo.ai",
+      url: "https://hanzo.id",
       clientId: "zoo-web3",
       domain: "zoo.id",
     },
+    footerLinks: [
+      { name: "Zoo Labs", href: "https://zoo.ngo", external: true },
+      { name: "Zoo AI Chat", href: "https://ai.zoo.ngo", external: true },
+      { name: "Zoo Network", href: "https://zoo.network", external: true },
+      { name: "Zen LM", href: "https://zenlm.ai", external: true },
+      { name: "GitHub", href: "https://github.com/zooai", external: true },
+    ],
   },
 }
 
-// Get brand from environment or auto-detect from domain
+// Get brand from domain auto-detection or environment fallback
 function getBrandKey(): string {
-  // Check environment variable first (highest priority)
+  // Client-side: detect from domain (highest priority)
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname
+    if (hostname.includes("lux.cloud") || hostname.includes("lux.network")) return "lux"
+    if (hostname.includes("zoo.ngo") || hostname.includes("zoo.id")) return "zoo"
+    if (hostname.includes("hanzo.ai")) return "hanzo"
+    if (hostname.includes("bootno.de") || hostname.includes("bootnode.io")) return "bootnode"
+  }
+
+  // Server-side: BRAND env var (runtime, not baked by Next.js unlike NEXT_PUBLIC_*)
+  const runtimeBrand = process.env.BRAND?.toLowerCase()
+  if (runtimeBrand && brands[runtimeBrand]) {
+    return runtimeBrand
+  }
+
+  // Fall back to build-time NEXT_PUBLIC_BRAND
   const envBrand = process.env.NEXT_PUBLIC_BRAND?.toLowerCase()
   if (envBrand && brands[envBrand]) {
     return envBrand
   }
 
-  // Auto-detect from domain in browser
-  if (typeof window !== "undefined") {
-    const hostname = window.location.hostname
-    // Lux Cloud branding
-    if (hostname.includes("lux.cloud") || hostname.includes("lux.network")) return "lux"
-    // Zoo branding
-    if (hostname.includes("zoo.ngo") || hostname.includes("zoo.id")) return "zoo"
-    // Bootnode standalone (if ever deployed separately)
-    if (hostname.includes("bootno.de") || hostname.includes("bootnode.io")) return "bootnode"
-    // Default: Hanzo branding (web3.hanzo.ai, localhost, etc.)
-  }
-
-  // Default to Hanzo Web3 branding
-  return "hanzo"
+  return "bootnode"
 }
 
 // Export the active brand configuration
