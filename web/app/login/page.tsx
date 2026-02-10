@@ -179,26 +179,29 @@ function LoginForm() {
             </form>
           </Tabs>
 
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            Development mode - local authentication
-          </p>
-
-          {/* Demo credentials for localhost */}
-          <div className="mt-3 rounded-md border border-dashed border-muted-foreground/25 bg-muted/50 p-3">
+          {/* Quick login for local dev */}
+          <div className="mt-6 space-y-2">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Quick Login</span>
+              </div>
+            </div>
             <Button
               type="button"
-              variant="ghost"
-              size="sm"
-              className="w-full text-xs h-8"
+              variant="outline"
+              className="w-full"
               disabled={loading}
               onClick={async () => {
                 setMode("login")
-                setEmail("test@hanzo.ai")
-                setPassword("testpass123")
+                setEmail("z@lux.network")
+                setPassword("admin")
                 setLoading(true)
                 setError("")
                 try {
-                  await login("test@hanzo.ai", "testpass123")
+                  await login("z@lux.network", "admin")
                   const returnUrl = searchParams.get("returnUrl") || "/dashboard"
                   router.push(returnUrl)
                 } catch (err) {
@@ -210,15 +213,15 @@ function LoginForm() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Signing in...
                 </>
               ) : (
-                "Use Demo Account"
+                <>Sign in as Admin (z@lux.network)</>
               )}
             </Button>
-            <p className="text-[10px] text-muted-foreground mt-2 text-center">
-              test@hanzo.ai / testpass123
+            <p className="text-center text-[10px] text-muted-foreground">
+              Local dev only &mdash; z@lux.network / admin
             </p>
           </div>
         </CardContent>

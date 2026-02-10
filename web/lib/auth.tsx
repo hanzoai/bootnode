@@ -38,8 +38,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 // Check if we're in production mode
 const isProductionMode = () => {
   if (typeof window === "undefined") return false
-  return process.env.NEXT_PUBLIC_AUTH_MODE === "iam" ||
-         window.location.hostname !== "localhost"
+  if (process.env.NEXT_PUBLIC_AUTH_MODE === "iam") return true
+  const h = window.location.hostname
+  return h !== "localhost" && h !== "127.0.0.1" && h !== "0.0.0.0" && !h.startsWith("192.168.") && !h.startsWith("10.")
 }
 
 export function useAuth() {
@@ -60,8 +61,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const isProduction = isProductionMode()
 
   const getApiUrl = useCallback(() => {
-    if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
-      return getBrand().apiUrl
+    if (typeof window !== "undefined") {
+      const h = window.location.hostname
+      const isLocal = h === "localhost" || h === "127.0.0.1" || h === "0.0.0.0" || h.startsWith("192.168.") || h.startsWith("10.")
+      if (!isLocal) return getBrand().apiUrl
     }
     return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
   }, [])

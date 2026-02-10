@@ -162,7 +162,7 @@ export function UnifiedNavigation() {
   return (
     <>
       {/* Top Navigation Bar */}
-      <nav className="bg-white border-b border-gray-200 fixed w-full top-0 z-50">
+      <nav className="bg-background border-b border-border fixed w-full top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
@@ -267,7 +267,7 @@ export function UnifiedNavigation() {
       </nav>
 
       {/* Side Navigation */}
-      <div className="fixed inset-y-0 left-0 z-40 w-64 bg-gray-50 border-r border-gray-200 pt-16 overflow-y-auto">
+      <div className="fixed inset-y-0 left-0 z-40 w-64 bg-sidebar border-r border-border pt-16 overflow-y-auto">
         <nav className="p-4 space-y-2">
           {/* Main Navigation */}
           {navigation.map((item) => (
@@ -277,8 +277,8 @@ export function UnifiedNavigation() {
           {/* Admin Navigation (if admin) */}
           {isAdmin && (
             <>
-              <div className="pt-4 mt-4 border-t border-gray-200">
-                <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <div className="pt-4 mt-4 border-t border-border">
+                <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Administration
                 </h3>
               </div>
@@ -290,7 +290,7 @@ export function UnifiedNavigation() {
         </nav>
 
         {/* Organization Info */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t">
+        <div className="absolute bottom-0 left-0 right-0 p-4 bg-background border-t border-border">
           <div className="flex items-center space-x-3">
             <div 
               className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold"
@@ -310,7 +310,7 @@ export function UnifiedNavigation() {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-30 md:hidden">
           <div className="absolute inset-0 bg-black opacity-25" onClick={() => setMobileMenuOpen(false)} />
-          <div className="absolute left-0 top-16 w-64 h-full bg-white border-r border-gray-200 overflow-y-auto">
+          <div className="absolute left-0 top-16 w-64 h-full bg-background border-r border-border overflow-y-auto">
             <nav className="p-4 space-y-2">
               {navigation.concat(isAdmin ? adminNavigation : []).map((item) => (
                 <NavItem 
@@ -353,9 +353,9 @@ function NavItem({
         onClick={onClick}
         className={`
           flex items-center justify-between w-full px-3 py-2 text-sm font-medium rounded-md transition-colors
-          ${isActive(item.href) 
-            ? 'bg-primary text-primary-foreground' 
-            : 'text-gray-700 hover:bg-gray-100'
+          ${isActive(item.href)
+            ? 'bg-primary text-primary-foreground'
+            : 'text-foreground/80 hover:bg-accent'
           }
         `}
       >
@@ -391,7 +391,7 @@ function NavItem({
                 flex items-center space-x-2 px-3 py-2 text-sm rounded-md transition-colors
                 ${isActive(child.href)
                   ? 'bg-primary/10 text-primary'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  : 'text-muted-foreground hover:bg-accent'
                 }
               `}
             >
