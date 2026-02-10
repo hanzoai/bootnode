@@ -7,6 +7,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { getBrand } from "@/lib/brand"
 
 interface BootnodeUser {
   id: string
@@ -59,6 +60,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const isProduction = isProductionMode()
 
   const getApiUrl = useCallback(() => {
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+      return getBrand().apiUrl
+    }
     return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
   }, [])
 

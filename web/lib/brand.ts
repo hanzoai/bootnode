@@ -10,6 +10,8 @@ export type BrandConfig = {
   logoWhite: string
   favicon: string
   domain: string
+  apiUrl: string
+  wsUrl: string
   statusUrl: string
   defaultTheme: "light" | "dark"
   colors: {
@@ -46,6 +48,8 @@ const brands: Record<string, BrandConfig> = {
     logoWhite: "/logo/bootnode-logo-white.svg",
     favicon: "/logo/bootnode-icon.svg",
     domain: "bootno.de",
+    apiUrl: "https://api.bootno.de",
+    wsUrl: "wss://ws.bootno.de",
     statusUrl: "https://status.bootno.de",
     defaultTheme: "light",
     colors: {
@@ -77,6 +81,8 @@ const brands: Record<string, BrandConfig> = {
     logoWhite: "/logo/hanzo-logo-white.svg",
     favicon: "/logo/hanzo-icon.svg",
     domain: "web3.hanzo.ai",
+    apiUrl: "https://api.web3.hanzo.ai",
+    wsUrl: "wss://ws.web3.hanzo.ai",
     statusUrl: "https://status.hanzo.ai",
     defaultTheme: "dark",
     colors: {
@@ -112,6 +118,8 @@ const brands: Record<string, BrandConfig> = {
     logoWhite: "/logo/lux-wordmark-white.svg",
     favicon: "/logo/lux-icon.svg",
     domain: "cloud.lux.network",
+    apiUrl: "https://api.cloud.lux.network",
+    wsUrl: "wss://ws.cloud.lux.network",
     statusUrl: "https://status.lux.network",
     defaultTheme: "dark",
     colors: {
@@ -147,6 +155,8 @@ const brands: Record<string, BrandConfig> = {
     logoWhite: "/logo/zoo-logo-white.svg",
     favicon: "/logo/zoo-icon.svg",
     domain: "web3.zoo.ngo",
+    apiUrl: "https://api.web3.zoo.ngo",
+    wsUrl: "wss://ws.web3.zoo.ngo",
     statusUrl: "https://status.zoo.ngo",
     defaultTheme: "dark",
     colors: {

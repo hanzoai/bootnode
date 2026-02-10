@@ -4,6 +4,7 @@
 import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth"
+import { getBrand } from "@/lib/brand"
 
 function CallbackContent() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
@@ -40,7 +41,10 @@ function CallbackContent() {
       }
 
       // Exchange code for token via our API
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+      const brand = getBrand()
+      const apiUrl = (typeof window !== "undefined" && window.location.hostname !== "localhost")
+        ? brand.apiUrl
+        : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000")
       const response = await fetch(`${apiUrl}/v1/auth/oauth/callback`, {
         method: "POST",
         headers: {

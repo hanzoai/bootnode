@@ -1,7 +1,8 @@
 # Bootnode Web Dashboard
 # Next.js 15 with React 19
 
-FROM node:22-alpine AS base
+# Pinned digest for supply chain security - update periodically
+FROM node:22-alpine@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34 AS base
 
 # Install dependencies only when needed
 FROM base AS deps
