@@ -17,6 +17,7 @@ from bootnode.api.wallets import router as wallets_router
 from bootnode.api.webhooks import router as webhooks_router
 from bootnode.api.team import router as team_router
 from bootnode.api.lux import router as lux_router
+from bootnode.api.networks import router as networks_router
 from bootnode.api.zap import router as zap_router
 
 router = APIRouter()
@@ -38,3 +39,4 @@ router.include_router(zap_router, prefix="/zap", tags=["ZAP Protocol"])
 router.include_router(infra_router, prefix="/infra", tags=["Infrastructure"])
 router.include_router(team_router, prefix="/team", tags=["Team"])
 router.include_router(lux_router, prefix="/lux", tags=["Lux Fleet"])
+router.include_router(networks_router, prefix="/networks", tags=["Networks"])
