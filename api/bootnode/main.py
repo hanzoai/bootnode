@@ -98,7 +98,7 @@ if settings.frontend_url:
     if origin not in production_origins:
         production_origins.append(origin)
 # Add extra origins from ALLOWED_ORIGINS env var
-for extra in settings.allowed_origins:
+for extra in getattr(settings, "allowed_origins", []):
     origin = extra.strip().rstrip("/")
     if origin and origin not in production_origins:
         production_origins.append(origin)
