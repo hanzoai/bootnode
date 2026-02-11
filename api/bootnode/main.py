@@ -83,10 +83,29 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+# CORS - all cloud domains for white-label multi-network support
+production_origins = [
+    "https://bootno.de",
+    "https://cloud.lux.network",
+    "https://cloud.pars.network",
+    "https://cloud.zoo.network",
+    "https://cloud.hanzo.network",
+    "https://cloud.hanzo.ai",
+]
+# Add frontend_url if set
+if settings.frontend_url:
+    origin = settings.frontend_url.rstrip("/")
+    if origin not in production_origins:
+        production_origins.append(origin)
+# Add extra origins from ALLOWED_ORIGINS env var
+for extra in settings.allowed_origins:
+    origin = extra.strip().rstrip("/")
+    if origin and origin not in production_origins:
+        production_origins.append(origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if not settings.is_production else ["https://bootnode.dev"],
+    allow_origins=["*"] if not settings.is_production else production_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     enable_multi_tenant: bool = True
     allowed_orgs: list[str] = ["hanzo", "zoo", "lux", "pars"]
     frontend_url: str = "http://localhost:3001"
+    allowed_origins: list[str] = []  # Extra CORS origins (comma-separated in env)
 
     # Rate Limiting
     rate_limit_requests: int = 100  # per minute
@@ -69,6 +70,7 @@ class Settings(BaseSettings):
     bsc_testnet_rpc: str = ""
     lux_mainnet_rpc: str = ""
     lux_testnet_rpc: str = ""
+    lux_devnet_rpc: str = ""
     solana_mainnet_rpc: str = ""
     solana_devnet_rpc: str = ""
     btc_mainnet_rpc: str = ""
