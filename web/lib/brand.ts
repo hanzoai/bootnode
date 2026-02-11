@@ -133,7 +133,7 @@ const brands: Record<string, BrandConfig> = {
       github: "https://github.com/luxfi",
     },
     iam: {
-      url: "https://lux.id",
+      url: "https://iam.lux.network",
       clientId: "lux-cloud",
       domain: "lux.id",
     },
@@ -144,6 +144,42 @@ const brands: Record<string, BrandConfig> = {
       { name: "Lux Wallet", href: "https://wallet.lux.network", external: true },
       { name: "Lux Exchange", href: "https://exchange.lux.network", external: true },
       { name: "GitHub", href: "https://github.com/luxfi", external: true },
+    ],
+  },
+  pars: {
+    name: "Pars Cloud",
+    tagline: "Sovereign L1 Infrastructure",
+    description: "Sovereign L1 blockchain infrastructure for the Pars Network. Post-quantum secure, SessionVM messaging, native DEX, and more.",
+    logo: "/logo/pars-logo.svg",
+    logoIcon: "/logo/pars-icon.svg",
+    logoWhite: "/logo/pars-logo-white.svg",
+    favicon: "/logo/pars-icon.svg",
+    domain: "cloud.pars.network",
+    apiUrl: "https://api.cloud.pars.network",
+    wsUrl: "wss://ws.cloud.pars.network",
+    statusUrl: "https://status.pars.network",
+    defaultTheme: "dark",
+    colors: {
+      primary: "#00abff",
+      primaryForeground: "#ffffff",
+      accent: "#00abff",     // persian blue
+      accentEnd: "#F59E0B",  // gold accent
+    },
+    social: {
+      twitter: "https://twitter.com/parsnetwork",
+      github: "https://github.com/pars-network",
+    },
+    iam: {
+      url: "https://hanzo.id",
+      clientId: "pars-cloud",
+      domain: "pars.id",
+    },
+    footerLinks: [
+      { name: "Pars Network", href: "https://pars.network", external: true },
+      { name: "Pars Explorer", href: "https://explore.pars.network", external: true },
+      { name: "Pars Wallet", href: "https://wallet.pars.network", external: true },
+      { name: "SessionVM", href: "https://session.pars.network", external: true },
+      { name: "GitHub", href: "https://github.com/pars-network", external: true },
     ],
   },
   zoo: {
@@ -190,6 +226,7 @@ function getBrandKey(): string {
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname
     if (hostname.includes("lux.cloud") || hostname.includes("lux.network")) return "lux"
+    if (hostname.includes("pars.network") || hostname.includes("pars.id")) return "pars"
     if (hostname.includes("zoo.ngo") || hostname.includes("zoo.id")) return "zoo"
     if (hostname.includes("hanzo.ai")) return "hanzo"
     if (hostname.includes("bootno.de") || hostname.includes("bootnode.io")) return "bootnode"

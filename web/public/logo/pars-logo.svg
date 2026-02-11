@@ -1,0 +1,69 @@
+<svg viewBox="-120 -120 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Pars Network Logo - Persian 8-Pointed Star (Khatam/Shamseh)
+    The traditional Persian geometric motif - recursive fractal star
+    Used in mosques, palaces, and tilework across Persia for millennia.
+  -->
+  <defs>
+    <linearGradient id="pars-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f5d06f"/>
+      <stop offset="50%" stop-color="#caa24a"/>
+      <stop offset="100%" stop-color="#f3dc8f"/>
+    </linearGradient>
+    <linearGradient id="pars-blue" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#003355"/>
+      <stop offset="50%" stop-color="#00abff"/>
+      <stop offset="100%" stop-color="#66d0ff"/>
+    </linearGradient>
+    <filter id="pars-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Outer 8-pointed star -->
+  <g filter="url(#pars-glow)">
+    <path
+      d="M0,-100 L30,-60 L100,-40 L60,0 L100,40 L30,60 L0,100 L-30,60 L-100,40 L-60,0 L-100,-40 L-30,-60 Z"
+      fill="none"
+      stroke="url(#pars-gold)"
+      stroke-width="4"
+      stroke-linejoin="round"
+    />
+  </g>
+
+  <!-- Inner star with blue fill -->
+  <path
+    d="M0,-70 L22,-42 L70,-28 L42,0 L70,28 L22,42 L0,70 L-22,42 L-70,28 L-42,0 L-70,-28 L-22,-42 Z"
+    fill="url(#pars-blue)"
+    stroke="url(#pars-gold)"
+    stroke-width="3"
+    stroke-linejoin="round"
+  />
+
+  <!-- Recursive inner star -->
+  <path
+    d="M0,-45 L14,-27 L45,-18 L27,0 L45,18 L14,27 L0,45 L-14,27 L-45,18 L-27,0 L-45,-18 L-14,-27 Z"
+    fill="none"
+    stroke="url(#pars-gold)"
+    stroke-width="2"
+    stroke-linejoin="round"
+    opacity="0.8"
+  />
+
+  <!-- Interlaced circles (Persian geometric pattern) -->
+  <g fill="none" stroke="#eaf7ff" stroke-width="1.5" opacity="0.6">
+    <circle r="55"/>
+    <circle r="35"/>
+  </g>
+
+  <!-- Center rosette -->
+  <circle r="8" fill="url(#pars-gold)"/>
+  <path
+    d="M0,-20 L6,-6 L20,0 L6,6 L0,20 L-6,6 L-20,0 L-6,-6 Z"
+    fill="#002a47"
+    stroke="url(#pars-gold)"
+    stroke-width="1.5"
+    stroke-linejoin="round"
+  />
+</svg>

@@ -1,0 +1,39 @@
+<svg viewBox="-120 -120 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Pars Network Favicon - Simplified 8-Pointed Star
+    Optimized for small sizes (16x16, 32x32, etc.)
+  -->
+  <defs>
+    <linearGradient id="fav-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f5d06f"/>
+      <stop offset="50%" stop-color="#caa24a"/>
+      <stop offset="100%" stop-color="#f3dc8f"/>
+    </linearGradient>
+    <linearGradient id="fav-blue" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#003355"/>
+      <stop offset="50%" stop-color="#00abff"/>
+      <stop offset="100%" stop-color="#66d0ff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer star -->
+  <path
+    d="M0,-100 L30,-60 L100,-40 L60,0 L100,40 L30,60 L0,100 L-30,60 L-100,40 L-60,0 L-100,-40 L-30,-60 Z"
+    fill="none"
+    stroke="url(#fav-gold)"
+    stroke-width="8"
+    stroke-linejoin="round"
+  />
+
+  <!-- Inner star -->
+  <path
+    d="M0,-65 L20,-39 L65,-26 L39,0 L65,26 L20,39 L0,65 L-20,39 L-65,26 L-39,0 L-65,-26 L-20,-39 Z"
+    fill="url(#fav-blue)"
+    stroke="url(#fav-gold)"
+    stroke-width="6"
+    stroke-linejoin="round"
+  />
+
+  <!-- Center dot -->
+  <circle r="12" fill="url(#fav-gold)"/>
+</svg>

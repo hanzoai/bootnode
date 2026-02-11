@@ -12,6 +12,7 @@ const brands: Record<string, { name: string; tagline: string; domain: string; ic
   bootnode: { name: "Bootnode", tagline: "Blockchain Infrastructure", domain: "bootno.de", icon: "/logo/bootnode-icon.svg", defaultTheme: "light" },
   hanzo: { name: "Hanzo Web3", tagline: "Web3 Infrastructure", domain: "web3.hanzo.ai", icon: "/logo/hanzo-icon.svg", defaultTheme: "dark" },
   lux: { name: "Lux Cloud", tagline: "Next-Gen Blockchain Infrastructure", domain: "cloud.lux.network", icon: "/logo/lux-icon.svg", defaultTheme: "dark" },
+  pars: { name: "Pars Cloud", tagline: "Sovereign L1 Infrastructure", domain: "cloud.pars.network", icon: "/logo/pars-icon.svg", defaultTheme: "dark" },
   zoo: { name: "Zoo Labs", tagline: "Decentralized AI Infrastructure", domain: "web3.zoo.ngo", icon: "/logo/zoo-icon.svg", defaultTheme: "dark" },
 }
 
