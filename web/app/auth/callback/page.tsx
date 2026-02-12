@@ -45,12 +45,13 @@ function CallbackContent() {
       const apiUrl = (typeof window !== "undefined" && window.location.hostname !== "localhost")
         ? brand.apiUrl
         : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000")
+      const redirectUri = `${window.location.origin}/auth/callback`
       const response = await fetch(`${apiUrl}/v1/auth/oauth/callback`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ code, state: stateParam }),
+        body: JSON.stringify({ code, state: stateParam, redirect_uri: redirectUri }),
       })
 
       if (!response.ok) {

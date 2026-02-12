@@ -61,19 +61,27 @@ class IAMClient:
             self._jwks_client = PyJWKClient(jwks_url)
         return self._jwks_client
 
+    # All known IAM app client_ids — tokens from any of these are accepted.
+    KNOWN_CLIENT_IDS = {"lux-web3", "pars-cloud", "zoo-cloud", "hanzo-cloud"}
+
     async def verify_token(self, token: str) -> IAMUser:
         """Verify JWT token from hanzo.id and return user."""
         try:
             # Get signing key from JWKS
             signing_key = self.jwks_client.get_signing_key_from_jwt(token)
 
+            # Accept tokens issued for any of our known IAM apps
+            allowed_audiences = self.KNOWN_CLIENT_IDS | {self.settings.iam_client_id}
+
             # Decode and verify token
             payload = jwt.decode(
                 token,
                 signing_key.key,
                 algorithms=["RS256", "ES256"],
-                audience=self.settings.iam_client_id,
-                issuer=self.settings.iam_url,
+                audience=list(allowed_audiences),
+                # Lux IAM currently issues tokens with canonical issuer
+                # (for example, https://hanzo.id) even when reached via branded domains.
+                options={"verify_iss": False},
             )
 
             # Extract user info
@@ -101,14 +109,25 @@ class IAMClient:
                 detail=f"Invalid token: {str(e)}",
             )
 
-    async def exchange_code(self, code: str, redirect_uri: str) -> dict[str, Any]:
-        """Exchange authorization code for tokens."""
+    async def exchange_code(
+        self,
+        code: str,
+        redirect_uri: str,
+        client_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Exchange authorization code for tokens.
+
+        Args:
+            code: The authorization code from the OAuth callback.
+            redirect_uri: Must match the redirect_uri used in the authorize request.
+            client_id: IAM app client_id. Defaults to settings.iam_client_id.
+        """
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{self.settings.iam_url}/api/login/oauth/access_token",
                 data={
                     "grant_type": "authorization_code",
-                    "client_id": self.settings.iam_client_id,
+                    "client_id": client_id or self.settings.iam_client_id,
                     "client_secret": self.settings.iam_client_secret,
                     "code": code,
                     "redirect_uri": redirect_uri,
@@ -122,59 +141,6 @@ class IAMClient:
                 )
 
             return response.json()
-
-
-# Global IAM client instance
-iam_client = IAMClient()
-
-
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> IAMUser:
-    """Dependency to get current authenticated user from Hanzo IAM."""
-    return await iam_client.verify_token(credentials.credentials)
-
-    async def get_user_info(self, access_token: str) -> IAMUser:
-        """Get user info from IAM using access token."""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{self.settings.iam_url}/api/userinfo",
-                headers={"Authorization": f"Bearer {access_token}"},
-            )
-
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Failed to get user info",
-                )
-
-            data = response.json()
-            return IAMUser(
-                id=data.get("sub"),
-                name=data.get("name", ""),
-                email=data.get("email", ""),
-                org=data.get("org", "hanzo"),
-                avatar=data.get("avatar"),
-                roles=data.get("roles", []),
-                permissions=data.get("permissions", []),
-            )
-
-    def get_login_url(self, redirect_uri: str, org: str = "hanzo") -> str:
-        """Get login URL for specific org."""
-        org_domains = {
-            "hanzo": "hanzo.id",
-            "zoo": "zoo.id",
-            "lux": "lux.id",
-            "pars": "pars.id",
-        }
-        domain = org_domains.get(org, "hanzo.id")
-
-        return (
-            f"https://{domain}/login/oauth/authorize"
-            f"?client_id={self.settings.iam_client_id}"
-            f"&response_type=code"
-            f"&redirect_uri={redirect_uri}"
-            f"&scope=openid+profile+email"
-            f"&state={org}"
-        )
 
 
 # Dependency injection

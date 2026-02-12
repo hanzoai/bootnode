@@ -38,10 +38,11 @@ function LoginForm() {
       const returnUrl = searchParams.get("returnUrl") || "/dashboard"
       const callbackUrl = `${window.location.origin}/auth/callback`
       const iamUrl = brand.iam.url
-      const authRedirect = `${iamUrl}/login?redirect_uri=${encodeURIComponent(callbackUrl)}&state=${encodeURIComponent(returnUrl)}`
+      const clientId = brand.iam.clientId
+      const authRedirect = `${iamUrl}/login/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=openid+profile+email&state=${encodeURIComponent(returnUrl)}`
       window.location.href = authRedirect
     }
-  }, [isProduction, authLoading, user, searchParams, brand.iam.url])
+  }, [isProduction, authLoading, user, searchParams, brand.iam.url, brand.iam.clientId])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()

@@ -1,6 +1,13 @@
-"""OAuth callback endpoint for Hanzo IAM integration."""
+"""OAuth callback endpoint for Hanzo IAM integration.
 
-import httpx
+Supports multi-network OAuth: each white-label network (lux, pars, zoo, hanzo)
+has its own IAM app with a distinct client_id.  The frontend sends the
+redirect_uri it used for the authorize request so the backend can derive the
+correct client_id for the token exchange.
+"""
+
+from urllib.parse import urlparse
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
@@ -10,12 +17,35 @@ from bootnode.core.iam import IAMClient, IAMUser, get_current_user
 router = APIRouter()
 settings = get_settings()
 
+# All cloud networks share the same IAM app (app-lux-web3, clientId=lux-web3)
+# with redirect URIs for each network registered in IAM.
+NETWORK_CLIENT_IDS: dict[str, str] = {
+    "lux": "lux-web3",
+    "pars": "lux-web3",
+    "zoo": "lux-web3",
+    "hanzo": "lux-web3",
+}
+
+
+def _network_from_redirect_uri(redirect_uri: str) -> str | None:
+    """Extract network name from a redirect_uri like https://cloud.lux.network/…"""
+    host = urlparse(redirect_uri).hostname or ""
+    # cloud.lux.network → lux  |  cloud.hanzo.ai → hanzo
+    parts = host.split(".")
+    if len(parts) >= 3 and parts[0] == "cloud":
+        return parts[1]
+    # bootno.de special case → lux (primary brand)
+    if "bootno.de" in host:
+        return "lux"
+    return None
+
 
 class OAuthCallbackRequest(BaseModel):
     """OAuth callback request."""
 
     code: str
     state: str
+    redirect_uri: str = ""  # Frontend should send the redirect_uri it used
 
 
 class OAuthCallbackResponse(BaseModel):
@@ -28,53 +58,56 @@ class OAuthCallbackResponse(BaseModel):
 
 @router.post("/oauth/callback", response_model=OAuthCallbackResponse)
 async def oauth_callback(request: OAuthCallbackRequest) -> OAuthCallbackResponse:
-    """Handle OAuth callback from Hanzo IAM."""
+    """Handle OAuth callback from Hanzo IAM.
+
+    The frontend MUST send redirect_uri so we can derive the correct IAM
+    client_id for multi-network token exchange.
+    """
     try:
-        # Exchange authorization code for access token
-        async with httpx.AsyncClient() as client:
-            token_response = await client.post(
-                f"{settings.iam_url}/oauth2/token",
-                data={
-                    "grant_type": "authorization_code",
-                    "code": request.code,
-                    "client_id": settings.iam_client_id,
-                    "client_secret": settings.iam_client_secret,
-                    "redirect_uri": f"{settings.frontend_url}/auth/callback",
-                },
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+        # Determine redirect_uri — prefer explicit, fall back to settings
+        redirect_uri = request.redirect_uri or (
+            f"{settings.frontend_url.rstrip('/')}/auth/callback"
+        )
+
+        # Derive network-specific client_id from the redirect_uri domain
+        network = _network_from_redirect_uri(redirect_uri)
+        client_id = NETWORK_CLIENT_IDS.get(network or "", settings.iam_client_id)
+
+        iam_client = IAMClient()
+        token_data = await iam_client.exchange_code(
+            code=request.code,
+            redirect_uri=redirect_uri,
+            client_id=client_id,
+        )
+
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="OAuth token response missing access_token",
             )
 
-            if token_response.status_code != 200:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Failed to exchange authorization code for token",
-                )
+        # Verify token and get user info
+        user = await iam_client.verify_token(access_token)
 
-            token_data = token_response.json()
-            access_token = token_data["access_token"]
-
-            # Verify token and get user info
-            iam_client = IAMClient()
-            user = await iam_client.verify_token(access_token)
-
-            # Check if user's organization is allowed
-            if user.org not in settings.allowed_orgs:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Organization '{user.org}' is not allowed",
-                )
-
-            return OAuthCallbackResponse(
-                access_token=access_token,
-                expires_in=token_data.get("expires_in", 3600),
+        # Check if user's organization is allowed
+        if user.org not in settings.allowed_orgs:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Organization '{user.org}' is not allowed",
             )
+
+        return OAuthCallbackResponse(
+            access_token=access_token,
+            expires_in=token_data.get("expires_in", 3600),
+        )
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"OAuth callback failed: {str(e)}",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to exchange authorization code for token",
         )
 
 

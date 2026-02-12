@@ -134,7 +134,7 @@ const brands: Record<string, BrandConfig> = {
     },
     iam: {
       url: "https://iam.lux.network",
-      clientId: "lux-cloud",
+      clientId: "lux-web3",
       domain: "lux.id",
     },
     footerLinks: [
@@ -170,8 +170,8 @@ const brands: Record<string, BrandConfig> = {
       github: "https://github.com/pars-network",
     },
     iam: {
-      url: "https://hanzo.id",
-      clientId: "pars-cloud",
+      url: "https://iam.lux.network",
+      clientId: "lux-web3",
       domain: "pars.id",
     },
     footerLinks: [
@@ -206,8 +206,8 @@ const brands: Record<string, BrandConfig> = {
       github: "https://github.com/zoolabs",
     },
     iam: {
-      url: "https://hanzo.id",
-      clientId: "zoo-web3",
+      url: "https://iam.lux.network",
+      clientId: "lux-web3",
       domain: "zoo.id",
     },
     footerLinks: [
