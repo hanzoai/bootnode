@@ -292,7 +292,7 @@ class LuxFleetResponse(BaseModel):
     ready_replicas: int = 0
     image: ImageConfig = Field(default_factory=ImageConfig)
     namespace: str = ""
-    helm_revision: int = 0
+    helm_revision: Optional[int] = None
     rpc_endpoint: Optional[str] = None
     staking_endpoint: Optional[str] = None
     nodes: list[LuxNodeInfo] = Field(default_factory=list)

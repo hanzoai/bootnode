@@ -2,9 +2,14 @@
 
 Provides CRUD operations for Lux blockchain validator fleets deployed
 via Helm charts to DOKS clusters.
+
+Supports two modes:
+  1. Remote: cluster_id provided → fetch kubeconfig from DigitalOcean API
+  2. In-cluster: no cluster_id or no DO token → use pod ServiceAccount
 """
 
 import logging
+import os
 import re
 from typing import Optional
 
@@ -36,6 +41,9 @@ _manager = LuxFleetManager()
 # K8s name validation: RFC 1123 DNS label
 _K8S_NAME_RE = re.compile(r"^[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?$")
 
+# In-cluster sentinel -- used when no cluster_id is provided
+_INCLUSTER_ID = "incluster"
+
 
 def _validate_k8s_name(name: str, field: str = "name") -> None:
     """Validate a string is a valid K8s name (RFC 1123 DNS label)."""
@@ -43,20 +51,46 @@ def _validate_k8s_name(name: str, field: str = "name") -> None:
         raise HTTPException(400, f"Invalid {field}: must match RFC 1123 DNS label")
 
 
-async def _get_kubeconfig(cluster_id: str) -> str:
-    """Fetch kubeconfig for a DOKS cluster via the infra API."""
+def _has_do_client() -> bool:
+    """Check if DigitalOcean client is available."""
+    try:
+        from bootnode.api.infra import get_do_client
+        return get_do_client() is not None
+    except Exception:
+        return False
+
+
+def _is_incluster() -> bool:
+    """Detect if running inside a Kubernetes pod."""
+    return os.path.exists("/var/run/secrets/kubernetes.io/serviceaccount/token")
+
+
+async def _get_kubeconfig(cluster_id: str) -> Optional[str]:
+    """Fetch kubeconfig for a DOKS cluster via the infra API.
+
+    Returns None if cluster_id is the in-cluster sentinel.
+    """
+    if cluster_id == _INCLUSTER_ID:
+        return None
+
     try:
         from bootnode.api.infra import do_get_kubeconfig, get_do_client
         client = get_do_client()
         if not client:
+            if _is_incluster():
+                return None  # fall back to in-cluster
             raise HTTPException(500, "DigitalOcean client not configured")
         return await do_get_kubeconfig(client, cluster_id)
     except ImportError:
+        if _is_incluster():
+            return None
         raise HTTPException(500, "Infrastructure module not available")
     except HTTPException:
         raise
     except Exception:
         logger.error("Failed to fetch kubeconfig for cluster %s", cluster_id)
+        if _is_incluster():
+            return None
         raise HTTPException(502, "Failed to fetch kubeconfig for cluster")
 
 
@@ -87,10 +121,19 @@ async def create_fleet(
 
 @router.get("/fleets", response_model=list[LuxFleetSummary])
 async def list_fleets(_api_key: ApiKeyDep, cluster_id: Optional[str] = None) -> list[LuxFleetSummary]:
-    """List all Lux fleets, optionally filtered by cluster."""
-    if cluster_id:
-        kubeconfig = await _get_kubeconfig(cluster_id)
-        return await _manager.list_fleets(kubeconfig, cluster_id)
+    """List all Lux fleets, optionally filtered by cluster.
+
+    When running in-cluster and no cluster_id is provided, discovers
+    fleets on the local cluster using the pod's ServiceAccount.
+    """
+    effective_cluster_id = cluster_id or (_INCLUSTER_ID if _is_incluster() else None)
+
+    if effective_cluster_id:
+        kubeconfig = await _get_kubeconfig(effective_cluster_id)
+        if kubeconfig is None:
+            # In-cluster mode
+            return await _manager.list_fleets_incluster(effective_cluster_id)
+        return await _manager.list_fleets(kubeconfig, effective_cluster_id)
 
     # List across all known clusters
     all_fleets = []
@@ -98,7 +141,10 @@ async def list_fleets(_api_key: ApiKeyDep, cluster_id: Optional[str] = None) -> 
     for cid in cluster_ids:
         try:
             kubeconfig = await _get_kubeconfig(cid)
-            fleets = await _manager.list_fleets(kubeconfig, cid)
+            if kubeconfig is None:
+                fleets = await _manager.list_fleets_incluster(cid)
+            else:
+                fleets = await _manager.list_fleets(kubeconfig, cid)
             all_fleets.extend(fleets)
         except Exception as e:
             logger.warning("Failed to list fleets on cluster %s: %s", cid, e)
@@ -117,6 +163,8 @@ async def get_fleet(cluster_id: str, network: LuxNetwork, _api_key: ApiKeyDep) -
             name = fdata["name"]
             break
 
+    if kubeconfig is None:
+        return await _manager.get_status_incluster(name, network, cluster_id)
     return await _manager.get_status(kubeconfig, name, network, cluster_id)
 
 

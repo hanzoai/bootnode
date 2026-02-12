@@ -248,12 +248,43 @@ async def do_create_cluster(client, cluster: ClusterCreate) -> Dict:
 
 
 async def do_get_kubeconfig(client, cluster_id: str) -> str:
-    """Get DOKS cluster kubeconfig"""
+    """Get DOKS cluster kubeconfig via DO API.
+
+    Uses raw HTTP because pydo can't deserialize YAML responses.
+    Falls back to doctl CLI if available.
+    """
+    import asyncio
+    import httpx
+
+    token = InfraConfig.DO_TOKEN
+    if not token:
+        raise HTTPException(status_code=500, detail="DO_TOKEN not configured")
+
+    # Try raw HTTP first (pydo can't handle YAML content-type)
     try:
-        resp = client.kubernetes.get_kubeconfig(cluster_id=cluster_id)
-        return resp
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"DO API error: {e}")
+        async with httpx.AsyncClient(timeout=30) as http:
+            resp = await http.get(
+                f"https://api.digitalocean.com/v2/kubernetes/clusters/{cluster_id}/kubeconfig",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            if resp.status_code == 200:
+                return resp.text
+            raise HTTPException(status_code=resp.status_code, detail=f"DO API: {resp.text[:200]}")
+    except httpx.HTTPError as e:
+        # Fallback to doctl CLI
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "doctl", "kubernetes", "cluster", "kubeconfig", "show", cluster_id,
+                "--access-token", token,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+            if proc.returncode == 0:
+                return stdout.decode()
+            raise HTTPException(status_code=502, detail=f"doctl error: {stderr.decode()[:200]}")
+        except FileNotFoundError:
+            raise HTTPException(status_code=500, detail=f"DO API error: {e}")
 
 
 async def do_list_volumes(client) -> List[Dict]:
@@ -465,10 +496,33 @@ MOCK_VOLUMES = [
 
 @router.get("/clusters", response_model=List[ClusterResponse])
 async def list_clusters():
-    """List all Kubernetes clusters"""
+    """List all Kubernetes clusters.
+
+    Returns DO clusters if DO_TOKEN is set, otherwise returns the local
+    in-cluster entry when running inside K8s.
+    """
     client = get_do_client()
     if client:
         return await do_list_clusters(client)
+
+    # Detect in-cluster and return self
+    if os.path.exists("/var/run/secrets/kubernetes.io/serviceaccount/token"):
+        return [{
+            "id": "incluster",
+            "name": "Local Cluster",
+            "provider": "kubernetes",
+            "region": os.getenv("DO_REGION", "sfo3"),
+            "status": "running",
+            "kubernetes_version": "",
+            "node_count": 0,
+            "node_size": "",
+            "endpoint": "https://kubernetes.default.svc",
+            "created_at": "",
+            "updated_at": None,
+            "node_pools": [],
+            "tags": ["incluster"],
+        }]
+
     return MOCK_CLUSTERS
 
 

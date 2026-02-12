@@ -363,6 +363,34 @@ class HelmDeployer:
             ))
         return pods
 
+    async def get_statefulsets(
+        self, namespace: str = "", all_namespaces: bool = False, label_selector: str = ""
+    ) -> list[dict]:
+        """kubectl get statefulsets."""
+        args = self._base_kubectl_args() + ["get", "statefulsets", "--output", "json"]
+        if all_namespaces:
+            args.append("--all-namespaces")
+        elif namespace:
+            args += ["--namespace", namespace]
+        if label_selector:
+            args += ["-l", label_selector]
+
+        out = await self._run(args)
+        data = json.loads(out)
+        results = []
+        for item in data.get("items", []):
+            meta = item.get("metadata", {})
+            spec = item.get("spec", {})
+            status = item.get("status", {})
+            results.append({
+                "name": meta.get("name", ""),
+                "namespace": meta.get("namespace", ""),
+                "replicas": spec.get("replicas", 0),
+                "ready_replicas": status.get("readyReplicas", 0),
+                "created_at": meta.get("creationTimestamp", ""),
+            })
+        return results
+
     async def get_services(self, namespace: str, label_selector: str = "") -> list[dict]:
         """kubectl get services, returns raw dicts."""
         args = self._base_kubectl_args() + [

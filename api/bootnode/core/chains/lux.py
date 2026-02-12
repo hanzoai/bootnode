@@ -81,6 +81,16 @@ class LuxFleetManager:
         deployer._temp_files.append(kc_path)
         return deployer
 
+    def _get_k8s_client(self):
+        """Get a kubernetes client using in-cluster config."""
+        try:
+            from kubernetes import client, config
+            config.load_incluster_config()
+            return client.CoreV1Api(), client.AppsV1Api()
+        except Exception:
+            logger.warning("Failed to load in-cluster k8s config")
+            raise
+
     def _get_values_files(self, network: LuxNetwork) -> list[Path]:
         """Get the network-specific values file if one exists."""
         filename = NETWORK_VALUES_FILES.get(network.value)
@@ -248,10 +258,20 @@ class LuxFleetManager:
             namespace = self._namespace(network)
             net_cfg = NETWORK_CONFIGS[network]
 
-            # Get Helm release status
+            # Get Helm release status (optional -- fleet may be kubectl-deployed)
+            helm_revision = None
             try:
                 release = await deployer.status(release_name, namespace)
+                helm_revision = release.revision
             except HelmError:
+                pass  # Not a Helm-managed fleet, continue with kubectl
+
+            # Get pods
+            pods = await deployer.get_pods(namespace, "app=luxd")
+            ready_count = sum(1 for p in pods if p.ready)
+            total = len(pods)
+
+            if total == 0 and helm_revision is None:
                 return LuxFleetResponse(
                     id=self._fleet_id(name, network),
                     name=name,
@@ -260,13 +280,8 @@ class LuxFleetManager:
                     status=LuxFleetStatus.ERROR,
                     replicas=0,
                     namespace=namespace,
-                    error="Helm release not found",
+                    error="No fleet found (no Helm release or pods)",
                 )
-
-            # Get pods
-            pods = await deployer.get_pods(namespace, "app=luxd")
-            ready_count = sum(1 for p in pods if p.ready)
-            total = len(pods)
 
             # Get services for endpoint discovery
             services = await deployer.get_services(namespace)
@@ -317,7 +332,7 @@ class LuxFleetManager:
                 replicas=total,
                 ready_replicas=ready_count,
                 namespace=namespace,
-                helm_revision=release.revision,
+                helm_revision=helm_revision,
                 rpc_endpoint=rpc_endpoint,
                 staking_endpoint=staking_endpoint,
                 nodes=nodes,
@@ -330,50 +345,269 @@ class LuxFleetManager:
         kubeconfig: str,
         cluster_id: str,
     ) -> list[LuxFleetSummary]:
-        """List all Lux fleets on a cluster."""
+        """List all Lux fleets on a cluster.
+
+        Discovers fleets via Helm releases first, then falls back to
+        direct StatefulSet discovery for fleets deployed via kubectl.
+        """
         deployer = await self._get_deployer(kubeconfig)
         try:
-            releases = await deployer.list_releases(
-                all_namespaces=True,
-                filter_pattern="^luxd-",
-            )
-
             fleets = []
-            for r in releases:
-                # Infer network from release name (luxd-mainnet -> mainnet)
-                network_str = r.name.removeprefix("luxd-")
-                try:
-                    network = LuxNetwork(network_str)
-                except ValueError:
+            seen_namespaces: set[str] = set()
+
+            # 1. Try Helm releases
+            try:
+                releases = await deployer.list_releases(
+                    all_namespaces=True,
+                    filter_pattern="^luxd-",
+                )
+                for r in releases:
+                    network_str = r.name.removeprefix("luxd-")
+                    try:
+                        network = LuxNetwork(network_str)
+                    except ValueError:
+                        continue
+
+                    pods = await deployer.get_pods(r.namespace, "app=luxd")
+                    ready = sum(1 for p in pods if p.ready)
+                    total = len(pods)
+                    seen_namespaces.add(r.namespace)
+
+                    if total == 0:
+                        status = LuxFleetStatus.DEPLOYING
+                    elif ready == total:
+                        status = LuxFleetStatus.RUNNING
+                    elif ready > 0:
+                        status = LuxFleetStatus.DEGRADED
+                    else:
+                        status = LuxFleetStatus.ERROR
+
+                    fleets.append(LuxFleetSummary(
+                        id=f"{cluster_id}:{r.name}",
+                        name=r.name,
+                        network=network,
+                        status=status,
+                        replicas=total,
+                        ready_replicas=ready,
+                        cluster_id=cluster_id,
+                        created_at=r.updated or "",
+                    ))
+            except Exception:
+                logger.debug("No Helm releases found, trying StatefulSet discovery")
+
+            # 2. Fall back to StatefulSet discovery for kubectl-deployed fleets
+            for network, cfg in NETWORK_CONFIGS.items():
+                if cfg.namespace in seen_namespaces:
                     continue
+                try:
+                    sts_list = await deployer.get_statefulsets(namespace=cfg.namespace)
+                    for sts in sts_list:
+                        if sts["name"] != "luxd":
+                            continue
+                        total = sts["replicas"]
+                        ready = sts["ready_replicas"]
 
-                pods = await deployer.get_pods(r.namespace, "app=luxd")
-                ready = sum(1 for p in pods if p.ready)
-                total = len(pods)
+                        if total == 0:
+                            status = LuxFleetStatus.DEPLOYING
+                        elif ready == total:
+                            status = LuxFleetStatus.RUNNING
+                        elif ready > 0:
+                            status = LuxFleetStatus.DEGRADED
+                        else:
+                            status = LuxFleetStatus.ERROR
 
-                if total == 0:
-                    status = LuxFleetStatus.DEPLOYING
-                elif ready == total:
-                    status = LuxFleetStatus.RUNNING
-                elif ready > 0:
-                    status = LuxFleetStatus.DEGRADED
-                else:
-                    status = LuxFleetStatus.ERROR
-
-                fleets.append(LuxFleetSummary(
-                    id=f"{cluster_id}:{r.name}",
-                    name=r.name,
-                    network=network,
-                    status=status,
-                    replicas=total,
-                    ready_replicas=ready,
-                    cluster_id=cluster_id,
-                    created_at=r.updated or "",
-                ))
+                        fleets.append(LuxFleetSummary(
+                            id=f"{cluster_id}:luxd-{network.value}",
+                            name=f"luxd-{network.value}",
+                            network=network,
+                            status=status,
+                            replicas=total,
+                            ready_replicas=ready,
+                            cluster_id=cluster_id,
+                            created_at=sts.get("created_at", ""),
+                        ))
+                except Exception:
+                    continue
 
             return fleets
         finally:
             deployer.cleanup_temp_files()
+
+    async def list_fleets_incluster(
+        self,
+        cluster_id: str,
+    ) -> list[LuxFleetSummary]:
+        """List all Lux fleets using in-cluster k8s access.
+
+        Discovers fleets via StatefulSet discovery in known namespaces.
+        """
+        core_v1, apps_v1 = self._get_k8s_client()
+        fleets = []
+
+        for network, cfg in NETWORK_CONFIGS.items():
+            try:
+                sts_list = apps_v1.list_namespaced_stateful_set(
+                    namespace=cfg.namespace,
+                    label_selector="app=luxd",
+                )
+                for sts in sts_list.items:
+                    total = sts.spec.replicas or 0
+                    ready = sts.status.ready_replicas or 0
+
+                    if total == 0:
+                        fleet_status = LuxFleetStatus.DEPLOYING
+                    elif ready == total:
+                        fleet_status = LuxFleetStatus.RUNNING
+                    elif ready > 0:
+                        fleet_status = LuxFleetStatus.DEGRADED
+                    else:
+                        fleet_status = LuxFleetStatus.ERROR
+
+                    created = ""
+                    if sts.metadata.creation_timestamp:
+                        created = sts.metadata.creation_timestamp.isoformat()
+
+                    fleets.append(LuxFleetSummary(
+                        id=f"{cluster_id}:luxd-{network.value}",
+                        name=f"luxd-{network.value}",
+                        network=network,
+                        status=fleet_status,
+                        replicas=total,
+                        ready_replicas=ready,
+                        cluster_id=cluster_id,
+                        created_at=created,
+                    ))
+
+                # If no statefulset found, check for pods directly
+                if not sts_list.items:
+                    pods = core_v1.list_namespaced_pod(
+                        namespace=cfg.namespace,
+                        label_selector="app=luxd",
+                    )
+                    if pods.items:
+                        total = len(pods.items)
+                        ready = sum(
+                            1 for p in pods.items
+                            if p.status.phase == "Running"
+                            and p.status.container_statuses
+                            and all(c.ready for c in p.status.container_statuses)
+                        )
+                        fleet_status = LuxFleetStatus.RUNNING if ready == total else (
+                            LuxFleetStatus.DEGRADED if ready > 0 else LuxFleetStatus.ERROR
+                        )
+                        fleets.append(LuxFleetSummary(
+                            id=f"{cluster_id}:luxd-{network.value}",
+                            name=f"luxd-{network.value}",
+                            network=network,
+                            status=fleet_status,
+                            replicas=total,
+                            ready_replicas=ready,
+                            cluster_id=cluster_id,
+                            created_at="",
+                        ))
+            except Exception as e:
+                logger.warning("Failed to list fleet in %s: %s", cfg.namespace, e)
+                continue
+
+        return fleets
+
+    async def get_status_incluster(
+        self,
+        name: str,
+        network: LuxNetwork,
+        cluster_id: str,
+    ) -> LuxFleetResponse:
+        """Get full fleet status using in-cluster k8s access."""
+        core_v1, apps_v1 = self._get_k8s_client()
+        namespace = self._namespace(network)
+        net_cfg = NETWORK_CONFIGS[network]
+
+        # Get pods
+        pod_list = core_v1.list_namespaced_pod(
+            namespace=namespace,
+            label_selector="app=luxd",
+        )
+        total = len(pod_list.items)
+
+        if total == 0:
+            return LuxFleetResponse(
+                id=self._fleet_id(name, network),
+                name=name,
+                cluster_id=cluster_id,
+                network=network,
+                status=LuxFleetStatus.ERROR,
+                replicas=0,
+                namespace=namespace,
+                error="No pods found",
+            )
+
+        ready_count = 0
+        for p in pod_list.items:
+            if (p.status.phase == "Running"
+                    and p.status.container_statuses
+                    and all(c.ready for c in p.status.container_statuses)):
+                ready_count += 1
+
+        # Get services for endpoint discovery
+        svc_list = core_v1.list_namespaced_service(namespace=namespace)
+        rpc_endpoint = None
+        staking_endpoint = None
+        for svc in svc_list.items:
+            if svc.status.load_balancer and svc.status.load_balancer.ingress:
+                for ing in svc.status.load_balancer.ingress:
+                    ext_ip = ing.ip
+                    if ext_ip and svc.spec.ports:
+                        for port in svc.spec.ports:
+                            if port.port == net_cfg.http_port:
+                                rpc_endpoint = f"http://{ext_ip}:{net_cfg.http_port}"
+                            elif port.port == net_cfg.staking_port:
+                                staking_endpoint = f"{ext_ip}:{net_cfg.staking_port}"
+
+        # Build node info
+        nodes = []
+        sorted_pods = sorted(pod_list.items, key=lambda p: p.metadata.name)
+        for i, pod in enumerate(sorted_pods):
+            pod_ready = (
+                pod.status.phase == "Running"
+                and pod.status.container_statuses
+                and all(c.ready for c in pod.status.container_statuses)
+            )
+            if pod_ready:
+                node_status = LuxNodeStatus.HEALTHY
+            elif pod.status.phase == "Pending":
+                node_status = LuxNodeStatus.PENDING
+            else:
+                node_status = LuxNodeStatus.UNHEALTHY
+
+            nodes.append(LuxNodeInfo(
+                pod_name=pod.metadata.name,
+                pod_index=i,
+                status=node_status,
+                http_port=net_cfg.http_port,
+                staking_port=net_cfg.staking_port,
+            ))
+
+        # Determine fleet status
+        if ready_count == total:
+            fleet_status = LuxFleetStatus.RUNNING
+        elif ready_count > 0:
+            fleet_status = LuxFleetStatus.DEGRADED
+        else:
+            fleet_status = LuxFleetStatus.ERROR
+
+        return LuxFleetResponse(
+            id=self._fleet_id(name, network),
+            name=name,
+            cluster_id=cluster_id,
+            network=network,
+            status=fleet_status,
+            replicas=total,
+            ready_replicas=ready_count,
+            namespace=namespace,
+            rpc_endpoint=rpc_endpoint,
+            staking_endpoint=staking_endpoint,
+            nodes=nodes,
+        )
 
     async def get_pod_logs(
         self,
