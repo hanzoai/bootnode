@@ -20,29 +20,9 @@ data:
   CORS_ORIGINS: "https://bootno.de,https://admin.bootno.de"
   TRUSTED_HOSTS: "bootno.de,admin.bootno.de"
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: bootnode-secrets
-  namespace: bootnode
-type: Opaque
-stringData:
-  JWT_SECRET: "your-super-secure-jwt-secret-change-in-production"
-  API_KEY_SALT: "your-secure-api-key-salt-change-in-production"
-  DATABASE_URL: "postgresql+asyncpg://bootnode:password@postgres:5432/bootnode"
-  REDIS_URL: "redis://redis:6379/0"
-  IAM_CLIENT_ID: "your-iam-client-id"
-  IAM_CLIENT_SECRET: "your-iam-client-secret"
-  # Hanzo Commerce (Square-based billing)
-  COMMERCE_URL: "https://commerce.hanzo.ai"
-  COMMERCE_API_KEY: "your-commerce-api-key"
-  COMMERCE_WEBHOOK_SECRET: "your-commerce-webhook-secret"
-  # Chain RPCs
-  ETH_MAINNET_RPC: "https://eth-mainnet.g.alchemy.com/v2/your-api-key"
-  POLYGON_MAINNET_RPC: "https://polygon-mainnet.g.alchemy.com/v2/your-api-key"
-  ARBITRUM_MAINNET_RPC: "https://arb-mainnet.g.alchemy.com/v2/your-api-key"
-  OPTIMISM_MAINNET_RPC: "https://opt-mainnet.g.alchemy.com/v2/your-api-key"
-  BASE_MAINNET_RPC: "https://base-mainnet.g.alchemy.com/v2/your-api-key"
+# NOTE: bootnode-secrets is managed by External Secrets Operator
+# See external-secrets.yaml for the ExternalSecret that syncs from Hanzo KMS
+# Do NOT define a manual Secret here — it conflicts with the ExternalSecret target
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -70,7 +50,10 @@ spec:
         - name: POSTGRES_USER
           value: bootnode
         - name: POSTGRES_PASSWORD
-          value: bootnode_production_password_change_me
+          valueFrom:
+            secretKeyRef:
+              name: bootnode-secrets
+              key: POSTGRES_PASSWORD
         ports:
         - containerPort: 5432
         volumeMounts:
@@ -150,7 +133,15 @@ spec:
       containers:
       - name: redis
         image: redis:7-alpine
-        args: ["redis-server", "--appendonly", "yes", "--requirepass", "bootnode_redis_password"]
+        command: ["sh", "-c"]
+        args:
+        - redis-server --appendonly yes --requirepass "$REDIS_PASSWORD"
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: bootnode-secrets
+              key: REDIS_PASSWORD
         ports:
         - containerPort: 6379
         volumeMounts:

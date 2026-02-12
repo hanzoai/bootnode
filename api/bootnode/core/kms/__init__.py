@@ -144,7 +144,17 @@ def inject_secrets() -> None:
     """
     client = _get_client()
     if not client:
-        logger.debug("KMS client not available, skipping secret injection")
+        # This is expected in K8s — External Secrets Operator handles injection
+        has_jwt = bool(os.getenv("JWT_SECRET"))
+        has_db = bool(os.getenv("DATABASE_URL"))
+        if has_jwt and has_db:
+            logger.info("Secrets loaded from environment (K8s External Secrets)")
+        else:
+            logger.warning(
+                "KMS client not available and core secrets missing from env. "
+                "Set HANZO_KMS_CLIENT_ID/SECRET for direct KMS access, "
+                "or ensure External Secrets Operator is syncing to bootnode-secrets."
+            )
         return
 
     try:

@@ -1,6 +1,10 @@
-# Bootnode Infrastructure - Full Stack
+# Bootnode Infrastructure - Local Development Stack
 # Usage: docker compose up -d
 # Scale: docker compose up -d --scale api=3
+#
+# SECRETS: All secrets use ${VAR:-default} for local development.
+# In production, use Hanzo KMS via External Secrets Operator.
+# See infra/k8s/external-secrets.yaml for production secret management.
 
 name: bootnode
 
@@ -597,7 +601,7 @@ services:
       - "28332:28332" # ZMQ blocks
       - "28333:28333" # ZMQ transactions
     healthcheck:
-      test: ["CMD", "bitcoin-cli", "-rpcuser=bootnode", "-rpcpassword=bootnode_btc_secret", "getblockchaininfo"]
+      test: ["CMD", "bitcoin-cli", "-rpcuser=${BTC_RPC_USER:-bootnode}", "-rpcpassword=${BTC_RPC_PASSWORD:-bootnode_btc_secret}", "getblockchaininfo"]
       interval: 60s
       timeout: 15s
       retries: 3

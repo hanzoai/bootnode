@@ -62,12 +62,13 @@ dev = [
     "mypy>=1.13.0",
     "pre-commit>=4.0.0",
 ]
-# Hanzo SDKs - not published to PyPI yet
-# In K8s, the KMS operator injects secrets as env vars directly
-# hanzo = [
-#     "hanzo-kms>=1.0.0",
-#     "hanzo-iam>=1.0.0",
-# ]
+# Hanzo SDKs - optional, for direct KMS access outside K8s
+# In K8s, External Secrets Operator syncs secrets from KMS automatically
+# Install with: pip install bootnode[hanzo]
+hanzo = [
+    "hanzo-kms>=1.0.0",
+    "hanzo-iam>=1.0.0",
+]
 
 [project.scripts]
 bootnode = "bootnode.cli:main"
