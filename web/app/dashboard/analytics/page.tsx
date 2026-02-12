@@ -57,11 +57,12 @@ export default function AnalyticsPage() {
       const headers = getAuthHeaders()
 
       // Fetch real data from multiple endpoints
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
       const [nodesRes, chainsRes, keysRes, webhooksRes] = await Promise.all([
-        fetch("http://localhost:8000/v1/nodes/", { headers }).catch(() => null),
-        fetch("http://localhost:8000/v1/chains", { headers }).catch(() => null),
-        fetch("http://localhost:8000/v1/auth/keys", { headers }).catch(() => null),
-        fetch("http://localhost:8000/v1/webhooks", { headers }).catch(() => null),
+        fetch(`${apiUrl}/v1/nodes/`, { headers }).catch(() => null),
+        fetch(`${apiUrl}/v1/chains`, { headers }).catch(() => null),
+        fetch(`${apiUrl}/v1/auth/keys`, { headers }).catch(() => null),
+        fetch(`${apiUrl}/v1/webhooks`, { headers }).catch(() => null),
       ])
 
       const nodes = nodesRes?.ok ? await nodesRes.json() : []

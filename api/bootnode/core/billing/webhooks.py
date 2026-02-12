@@ -61,7 +61,11 @@ class CommerceWebhookHandler:
             True if signature is valid
         """
         if not self.webhook_secret:
-            logger.warning("Webhook secret not configured, skipping verification")
+            settings = get_settings()
+            if settings.is_production:
+                logger.error("Webhook secret not configured in production — rejecting")
+                return False
+            logger.warning("Webhook secret not configured, skipping verification (dev mode)")
             return True
 
         expected = hmac.new(

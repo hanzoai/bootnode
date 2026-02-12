@@ -64,7 +64,7 @@ export default function PrivacyPage() {
                 <p className="mt-2">We collect information you voluntarily provide when you:</p>
                 <ul className="mt-2 ml-4 list-disc space-y-1">
                   <li>Create an account (email address, name, password)</li>
-                  <li>Subscribe to a paid plan (billing address, payment information via our payment processor Stripe)</li>
+                  <li>Subscribe to a paid plan (billing address, payment information via our payment processor)</li>
                   <li>Contact us via email or our contact form (name, email, message content)</li>
                   <li>Participate in surveys or promotions</li>
                 </ul>
@@ -109,7 +109,7 @@ export default function PrivacyPage() {
                 <ul className="mt-2 ml-4 list-disc space-y-1">
                   <li>
                     <strong className="text-foreground">Service providers:</strong> Third-party vendors who assist
-                    in operating the Service (e.g., Stripe for payments, cloud infrastructure
+                    in operating the Service (e.g., Square for payments, cloud infrastructure
                     providers for hosting, analytics providers). These vendors are
                     contractually obligated to protect your information.
                   </li>

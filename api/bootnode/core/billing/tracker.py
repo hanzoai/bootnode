@@ -4,6 +4,7 @@ Tracks compute units in Redis for real-time rate limiting and quota checks.
 Batches writes to ClickHouse for analytics and billing.
 """
 
+import json
 import time
 import uuid
 from datetime import UTC, datetime
@@ -102,7 +103,7 @@ class UsageTracker:
         # Add to buffer and check if we should flush
         buffer_key = CU_BUFFER_KEY.format(project_id=project_id)
         try:
-            await redis_client.client.rpush(buffer_key, str(usage_record))
+            await redis_client.client.rpush(buffer_key, json.dumps(usage_record))
             buffer_len = await redis_client.client.llen(buffer_key)
 
             if buffer_len >= self._batch_size:
@@ -132,8 +133,7 @@ class UsageTracker:
             records: list[dict[str, Any]] = []
             for record_str in records_raw:
                 try:
-                    # Convert string repr back to dict
-                    record = eval(record_str)  # Safe: we control the data
+                    record = json.loads(record_str)
                     records.append(record)
                 except Exception:
                     continue

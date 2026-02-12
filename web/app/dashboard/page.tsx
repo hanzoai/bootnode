@@ -66,12 +66,13 @@ export default function DashboardPage() {
         const headers = getAuthHeaders()
 
         // Fetch multiple endpoints in parallel
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
         const [teamRes, keysRes, webhooksRes, chainsRes, nodesRes] = await Promise.all([
-          fetch("http://localhost:8000/v1/team", { headers }).catch(() => null),
-          fetch("http://localhost:8000/v1/auth/keys", { headers }).catch(() => null),
-          fetch("http://localhost:8000/v1/webhooks", { headers }).catch(() => null),
-          fetch("http://localhost:8000/v1/chains", { headers }).catch(() => null),
-          fetch("http://localhost:8000/v1/nodes/", { headers }).catch(() => null),
+          fetch(`${apiUrl}/v1/team`, { headers }).catch(() => null),
+          fetch(`${apiUrl}/v1/auth/keys`, { headers }).catch(() => null),
+          fetch(`${apiUrl}/v1/webhooks`, { headers }).catch(() => null),
+          fetch(`${apiUrl}/v1/chains`, { headers }).catch(() => null),
+          fetch(`${apiUrl}/v1/nodes/`, { headers }).catch(() => null),
         ])
 
         // Parse responses

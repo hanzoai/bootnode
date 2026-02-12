@@ -31,7 +31,13 @@ stringData:
   API_KEY_SALT: "your-secure-api-key-salt-change-in-production"
   DATABASE_URL: "postgresql+asyncpg://bootnode:password@postgres:5432/bootnode"
   REDIS_URL: "redis://redis:6379/0"
+  IAM_CLIENT_ID: "your-iam-client-id"
   IAM_CLIENT_SECRET: "your-iam-client-secret"
+  # Hanzo Commerce (Square-based billing)
+  COMMERCE_URL: "https://commerce.hanzo.ai"
+  COMMERCE_API_KEY: "your-commerce-api-key"
+  COMMERCE_WEBHOOK_SECRET: "your-commerce-webhook-secret"
+  # Chain RPCs
   ETH_MAINNET_RPC: "https://eth-mainnet.g.alchemy.com/v2/your-api-key"
   POLYGON_MAINNET_RPC: "https://polygon-mainnet.g.alchemy.com/v2/your-api-key"
   ARBITRUM_MAINNET_RPC: "https://arb-mainnet.g.alchemy.com/v2/your-api-key"
@@ -229,6 +235,9 @@ spec:
         image: ghcr.io/hanzoai/bootnode:api-latest
         ports:
         - containerPort: 8000
+          name: http
+        - containerPort: 9999
+          name: zap
         envFrom:
         - configMapRef:
             name: bootnode-config
@@ -265,6 +274,10 @@ spec:
   ports:
   - port: 80
     targetPort: 8000
+    name: http
+  - port: 9999
+    targetPort: 9999
+    name: zap
   type: ClusterIP
 ---
 apiVersion: apps/v1

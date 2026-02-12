@@ -464,8 +464,8 @@ services:
       REDIS_URL: redis://redis:6379/3
       DATASTORE_URL: http://datastore:8123
       IAM_SERVER_URL: http://iam:8000
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      SQUARE_ACCESS_TOKEN: ${SQUARE_ACCESS_TOKEN:-}
+      SQUARE_WEBHOOK_SIGNATURE_KEY: ${SQUARE_WEBHOOK_SIGNATURE_KEY:-}
     volumes:
       - commerce_data:/app/data
     ports:

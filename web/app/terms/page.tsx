@@ -133,7 +133,7 @@ export default function TermsPage() {
                 <h3 className="mt-4 text-base font-semibold text-foreground">5.2 Payment</h3>
                 <p className="mt-2">
                   Paid plans are billed in advance on a monthly or annual basis. Payment is
-                  processed through Stripe. By providing payment information, you authorize
+                  processed through Square via Hanzo Commerce. By providing payment information, you authorize
                   us to charge the applicable fees to your payment method. All fees are
                   stated in US Dollars and are non-refundable except as expressly stated
                   herein or required by law.

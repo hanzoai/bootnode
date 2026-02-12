@@ -23,6 +23,6 @@ COPY bootnode/ bootnode/
 # Hanzo SDKs are optional - in K8s, the KMS operator injects secrets as env vars
 RUN uv pip install --system -e .
 
-# Run the application
-EXPOSE 8000
+# Run the application (8000=HTTP API, 9999=ZAP Cap'n Proto RPC)
+EXPOSE 8000 9999
 CMD ["uvicorn", "bootnode.main:app", "--host", "0.0.0.0", "--port", "8000"]

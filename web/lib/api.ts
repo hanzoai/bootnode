@@ -144,6 +144,36 @@ export const transfers = {
     api(`/transfers/${chain}/send`, { method: "POST", body: JSON.stringify(data) }),
 }
 
+// Billing
+export const billing = {
+  getUsage: () => api("/billing/usage"),
+  getUsageSummary: (year?: number, month?: number) => {
+    const params = year && month ? `?year=${year}&month=${month}` : ""
+    return api(`/billing/usage/summary${params}`)
+  },
+  getSubscription: () => api("/billing/subscription"),
+  upgrade: (data: { tier: string; hanzo_subscription_id?: string }) =>
+    api("/billing/subscription/upgrade", { method: "POST", body: JSON.stringify(data) }),
+  downgrade: (data: { tier: string }) =>
+    api("/billing/subscription/downgrade", { method: "POST", body: JSON.stringify(data) }),
+  getInvoices: (limit?: number) => api(`/billing/invoices${limit ? `?limit=${limit}` : ""}`),
+  getTiers: () => api("/billing/tiers"),
+  getTier: (name: string) => api(`/billing/tiers/${name}`),
+  checkLimits: () => api("/billing/limits"),
+  createCheckout: (data: { tier: string; nonce?: string; source_id?: string; success_url?: string; cancel_url?: string }) =>
+    api("/billing/checkout", { method: "POST", body: JSON.stringify(data) }),
+  captureCheckout: (orderId: string) =>
+    api(`/billing/checkout/capture/${orderId}`, { method: "POST" }),
+  syncUsage: () => api("/billing/sync", { method: "POST" }),
+  getSyncStatus: () => api("/billing/sync/status"),
+  // Unified IAM + Commerce
+  getAccount: () => api("/billing/account"),
+  getAccountSubscriptions: () => api("/billing/account/subscriptions"),
+  getAccountInvoices: () => api("/billing/account/invoices"),
+  getPaymentMethods: () => api("/billing/account/payment-methods"),
+  syncAccount: () => api("/billing/account/sync", { method: "POST" }),
+}
+
 // Team
 export const team = {
   list: () => api<{ members: TeamMember[]; total: number }>("/team"),

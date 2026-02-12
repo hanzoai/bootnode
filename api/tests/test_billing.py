@@ -341,13 +341,22 @@ class TestCommerceClient:
 
 class TestCommerceWebhooks:
     @patch("bootnode.core.billing.webhooks.get_settings")
-    def test_no_webhook_secret_allows_through(self, mock_settings):
-        mock_settings.return_value = MagicMock(commerce_webhook_secret="")
+    def test_no_webhook_secret_allows_through_dev(self, mock_settings):
+        mock_settings.return_value = MagicMock(commerce_webhook_secret="", is_production=False)
         from bootnode.core.billing.webhooks import CommerceWebhookHandler
 
         handler = CommerceWebhookHandler()
-        # No secret = verification skipped (returns True)
+        # No secret in dev mode = verification skipped (returns True)
         assert handler.verify_signature(b"payload", "any-sig") is True
+
+    @patch("bootnode.core.billing.webhooks.get_settings")
+    def test_no_webhook_secret_rejects_in_production(self, mock_settings):
+        mock_settings.return_value = MagicMock(commerce_webhook_secret="", is_production=True)
+        from bootnode.core.billing.webhooks import CommerceWebhookHandler
+
+        handler = CommerceWebhookHandler()
+        # No secret in production = fail-closed (returns False)
+        assert handler.verify_signature(b"payload", "any-sig") is False
 
     @patch("bootnode.core.billing.webhooks.get_settings")
     def test_valid_signature(self, mock_settings):
