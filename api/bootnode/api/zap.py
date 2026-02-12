@@ -63,7 +63,7 @@ async def get_zap_connection(_api_key: ApiKeyDep) -> dict[str, Any]:
     ```python
     from hanzo_zap import Client
 
-    async with Client.connect("zap://api.bootnode.dev:9999") as client:
+    async with Client.connect("zap://api.bootno.de:9999") as client:
         tools = await client.list_tools()
         result = await client.call_tool("rpc_call", {
             "chain": "ethereum",
@@ -71,7 +71,7 @@ async def get_zap_connection(_api_key: ApiKeyDep) -> dict[str, Any]:
         })
     ```
     """
-    host = settings.zap_host if settings.zap_host != "0.0.0.0" else "api.bootnode.dev"
+    host = settings.zap_host if settings.zap_host != "0.0.0.0" else "api.bootno.de"
     port = settings.zap_port
 
     return {
