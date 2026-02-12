@@ -72,10 +72,10 @@ metadata:
     app.kubernetes.io/name: bootnode-operator
 rules:
 # Bootnode resources
-- apiGroups: ["bootnode.dev"]
+- apiGroups: ["bootno.de"]
   resources: ["bootnodes", "bootnodes/status", "bootnodes/finalizers"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-- apiGroups: ["bootnode.dev"]
+- apiGroups: ["bootno.de"]
   resources: ["blockchains", "blockchains/status", "blockchains/finalizers"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 # Core resources
@@ -116,11 +116,11 @@ subjects:
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: bootnodes.bootnode.dev
+  name: bootnodes.bootno.de
   labels:
     app.kubernetes.io/name: bootnode-operator
 spec:
-  group: bootnode.dev
+  group: bootno.de
   versions:
   - name: v1alpha1
     served: true
@@ -387,11 +387,11 @@ spec:
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: blockchains.bootnode.dev
+  name: blockchains.bootno.de
   labels:
     app.kubernetes.io/name: bootnode-operator
 spec:
-  group: bootnode.dev
+  group: bootno.de
   versions:
   - name: v1alpha1
     served: true
@@ -472,7 +472,7 @@ spec:
     - bc
 ---
 # Example Bootnode CR
-apiVersion: bootnode.dev/v1alpha1
+apiVersion: bootno.de/v1alpha1
 kind: Bootnode
 metadata:
   name: production-bootnode
@@ -539,19 +539,19 @@ spec:
       nginx.ingress.kubernetes.io/rate-limit: "1000"
       nginx.ingress.kubernetes.io/cors-allow-origin: "*"
     hosts:
-      - host: api.bootnode.dev
+      - host: api.bootno.de
         paths:
           - path: /
             pathType: Prefix
-      - host: bootnode.dev
+      - host: bootno.de
         paths:
           - path: /
             pathType: Prefix
     tls:
       - secretName: bootnode-tls
         hosts:
-          - api.bootnode.dev
-          - bootnode.dev
+          - api.bootno.de
+          - bootno.de
   monitoring:
     enabled: true
     prometheus:

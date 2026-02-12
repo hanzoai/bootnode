@@ -1,6 +1,6 @@
 # Bootnode Cloud API - ZAP Schema
 # High-performance blockchain infrastructure for AI agents
-# Connect via: zap://api.bootnode.dev:9999
+# Connect via: zap://api.bootno.de:9999
 
 # =============================================================================
 # Core Types

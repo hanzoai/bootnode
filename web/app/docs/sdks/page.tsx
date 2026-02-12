@@ -221,7 +221,7 @@ print(f"Base fee: {gas['base_fee_gwei']} gwei")`}</code>
               <div>
                 <h4 className="text-sm font-semibold mb-2">Install</h4>
                 <pre className="overflow-x-auto rounded-lg bg-zinc-950 p-4 text-sm text-zinc-100">
-                  <code>{`go get github.com/bootnode-dev/bootnode-go`}</code>
+                  <code>{`go get github.com/bootnode/bootnode-go`}</code>
                 </pre>
               </div>
               <div>
@@ -236,7 +236,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/bootnode-dev/bootnode-go"
+	"github.com/bootnode/bootnode-go"
 )
 
 func main() {

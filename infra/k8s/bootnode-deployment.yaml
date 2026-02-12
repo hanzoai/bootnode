@@ -17,8 +17,8 @@ data:
   LOG_LEVEL: "INFO"
   RATE_LIMIT_REQUESTS: "1000"
   RATE_LIMIT_COMPUTE_UNITS: "10000"
-  CORS_ORIGINS: "https://bootnode.dev,https://admin.bootnode.dev"
-  TRUSTED_HOSTS: "bootnode.dev,admin.bootnode.dev"
+  CORS_ORIGINS: "https://bootno.de,https://admin.bootno.de"
+  TRUSTED_HOSTS: "bootno.de,admin.bootno.de"
 ---
 apiVersion: v1
 kind: Secret
@@ -291,7 +291,7 @@ spec:
         - containerPort: 3000
         env:
         - name: NEXT_PUBLIC_API_URL
-          value: "https://api.bootnode.dev"
+          value: "https://api.bootno.de"
         - name: NODE_ENV
           value: "production"
         livenessProbe:
@@ -342,12 +342,12 @@ metadata:
 spec:
   tls:
   - hosts:
-    - bootnode.dev
-    - api.bootnode.dev
-    - admin.bootnode.dev
+    - bootno.de
+    - api.bootno.de
+    - admin.bootno.de
     secretName: bootnode-tls
   rules:
-  - host: bootnode.dev
+  - host: bootno.de
     http:
       paths:
       - path: /
@@ -357,7 +357,7 @@ spec:
             name: bootnode-web-service
             port:
               number: 80
-  - host: admin.bootnode.dev
+  - host: admin.bootno.de
     http:
       paths:
       - path: /
@@ -367,7 +367,7 @@ spec:
             name: bootnode-web-service
             port:
               number: 80
-  - host: api.bootnode.dev
+  - host: api.bootno.de
     http:
       paths:
       - path: /

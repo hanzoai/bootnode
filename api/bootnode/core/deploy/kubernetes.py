@@ -408,7 +408,7 @@ class KubernetesDeployer(DeployTarget):
                     "template": {
                         "metadata": {
                             "annotations": {
-                                "bootnode.dev/restartedAt": now,
+                                "bootno.de/restartedAt": now,
                             }
                         }
                     }

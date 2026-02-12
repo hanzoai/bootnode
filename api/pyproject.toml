@@ -73,8 +73,8 @@ dev = [
 bootnode = "bootnode.cli:main"
 
 [project.urls]
-Homepage = "https://bootnode.dev"
-Documentation = "https://docs.bootnode.dev"
+Homepage = "https://bootno.de"
+Documentation = "https://docs.bootno.de"
 Repository = "https://github.com/hanzoai/bootnode"
 
 [build-system]

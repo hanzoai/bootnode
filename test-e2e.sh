@@ -89,7 +89,7 @@ echo ""
 # 2. AUTHENTICATION - REGISTER
 # ============================================
 log_info "Testing Authentication..."
-TEST_EMAIL="e2e-test-$(date +%s)@bootnode.dev"
+TEST_EMAIL="e2e-test-$(date +%s)@bootno.de"
 TEST_PASSWORD="testpass123"
 TEST_NAME="E2E Test User"
 
@@ -188,7 +188,7 @@ log_info "Testing Team Management..."
 invite_response=$(curl -s -X POST "$API_URL/v1/team" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer $TOKEN" \
-    -d '{"email":"e2e-invite@bootnode.dev","role":"developer"}')
+    -d '{"email":"e2e-invite@bootno.de","role":"developer"}')
 
 if echo "$invite_response" | grep -q '"id"'; then
     log_pass "Invite team member"
