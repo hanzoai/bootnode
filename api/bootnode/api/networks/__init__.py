@@ -26,7 +26,7 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from bootnode.api.deps import get_current_user
+from bootnode.core.iam import get_current_user
 
 logger = structlog.get_logger()
 router = APIRouter()
