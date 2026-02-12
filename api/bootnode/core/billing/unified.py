@@ -19,6 +19,7 @@ import structlog
 from pydantic import BaseModel
 
 from bootnode.config import get_settings
+from bootnode.core.billing.commerce import CommerceError
 from bootnode.core.iam import IAMUser
 
 logger = structlog.get_logger()
@@ -168,12 +169,11 @@ class UnifiedBillingClient:
                     status=response.status_code,
                     error=error_data,
                 )
-                # Return minimal customer data so billing can still work
-                return {
-                    "id": f"local_{iam_user.id}",
-                    "hanzo_id": iam_user.id,
-                    "email": iam_user.email,
-                }
+                raise CommerceError(
+                    message=error_data.get("message", "Failed to create Commerce customer"),
+                    status_code=response.status_code,
+                    details=error_data,
+                )
 
             return response.json()
 
@@ -262,7 +262,11 @@ class UnifiedBillingClient:
 
             if response.status_code >= 400:
                 error_data = response.json() if response.content else {}
-                raise Exception(f"Failed to create subscription: {error_data}")
+                raise CommerceError(
+                    message=error_data.get("message", "Failed to create subscription"),
+                    status_code=response.status_code,
+                    details=error_data,
+                )
 
             return response.json()
 
@@ -290,10 +294,16 @@ class UnifiedBillingClient:
             )
 
             if response.status_code >= 400:
+                error_data = response.json() if response.content else {}
                 logger.error(
                     "Failed to report usage",
                     subscription_id=subscription_id,
                     status=response.status_code,
+                )
+                raise CommerceError(
+                    message=error_data.get("message", "Failed to report usage"),
+                    status_code=response.status_code,
+                    details=error_data,
                 )
 
     async def sync_iam_to_commerce(self, iam_user: IAMUser) -> dict:
