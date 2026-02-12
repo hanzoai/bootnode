@@ -1,10 +1,12 @@
 """Hanzo Commerce client for subscription billing.
 
-Integrates with Hanzo Commerce API (Stripe-based) for:
+Integrates with Hanzo Commerce API (Square-based) for:
 - Customer management
 - Subscription lifecycle
+- Checkout (Square payment authorization/capture)
 - Usage metering (PAYG)
 - Invoice retrieval
+- Order management
 """
 
 from datetime import datetime
@@ -38,12 +40,12 @@ class CommerceError(Exception):
 
 
 class HanzoCommerceClient:
-    """Client for Hanzo Commerce billing API."""
+    """Client for Hanzo Commerce billing API (Square backend)."""
 
     def __init__(self) -> None:
         settings = get_settings()
-        self.base_url = settings.hanzo_commerce_url
-        self.api_key = settings.hanzo_commerce_api_key
+        self.base_url = settings.commerce_url
+        self.api_key = settings.commerce_api_key
         self._timeout = httpx.Timeout(30.0)
 
     def _headers(self) -> dict[str, str]:
@@ -108,13 +110,10 @@ class HanzoCommerceClient:
         name: str,
         org: str = "hanzo",
     ) -> str:
-        """
-        Create customer in Hanzo Commerce.
-        Returns customer_id.
-        """
+        """Create customer in Hanzo Commerce. Returns customer_id."""
         data = await self._request(
             "POST",
-            "/api/v1/customers",
+            "/api/v1/user",
             json={
                 "email": email,
                 "name": name,
@@ -137,7 +136,7 @@ class HanzoCommerceClient:
 
     async def get_customer(self, customer_id: str) -> Customer:
         """Get customer by ID."""
-        data = await self._request("GET", f"/api/v1/customers/{customer_id}")
+        data = await self._request("GET", f"/api/v1/user/{customer_id}")
         return Customer(
             id=data["id"],
             email=data["email"],
@@ -156,7 +155,7 @@ class HanzoCommerceClient:
         try:
             data = await self._request(
                 "GET",
-                "/api/v1/customers",
+                "/api/v1/user",
                 params={"email": email},
             )
             customers = data.get("data", [])
@@ -193,7 +192,7 @@ class HanzoCommerceClient:
 
         data = await self._request(
             "PATCH",
-            f"/api/v1/customers/{customer_id}",
+            f"/api/v1/user/{customer_id}",
             json=update_data,
         )
         return Customer(
@@ -205,6 +204,143 @@ class HanzoCommerceClient:
         )
 
     # =========================================================================
+    # Checkout (Square payment via Commerce)
+    # =========================================================================
+
+    async def create_checkout(
+        self,
+        customer_id: str,
+        plan_slug: str,
+        project_id: UUID,
+        nonce: str | None = None,
+        source_id: str | None = None,
+        success_url: str | None = None,
+        cancel_url: str | None = None,
+    ) -> dict[str, Any]:
+        """Authorize a payment via Commerce (Square).
+
+        Args:
+            customer_id: Commerce customer ID
+            plan_slug: Plan to subscribe to (e.g. bootnode-payg)
+            project_id: Bootnode project ID
+            nonce: Square payment nonce from Web Payments SDK
+            source_id: Square source ID (card on file)
+            success_url: Redirect URL on success
+            cancel_url: Redirect URL on cancel
+
+        Returns:
+            Dict with order_id, authorization_id, and checkout_url (if hosted)
+        """
+        payload: dict[str, Any] = {
+            "customer_id": customer_id,
+            "plan_slug": plan_slug,
+            "metadata": {
+                "project_id": str(project_id),
+                "source": "bootnode",
+            },
+        }
+        if nonce:
+            payload["nonce"] = nonce
+        if source_id:
+            payload["source_id"] = source_id
+        if success_url:
+            payload["success_url"] = success_url
+        if cancel_url:
+            payload["cancel_url"] = cancel_url
+
+        data = await self._request(
+            "POST",
+            "/api/v1/checkout/authorize",
+            json=payload,
+        )
+
+        logger.info(
+            "Checkout authorized via Commerce",
+            order_id=data.get("order_id"),
+            customer_id=customer_id,
+            plan_slug=plan_slug,
+        )
+        return data
+
+    async def capture_checkout(self, order_id: str) -> dict[str, Any]:
+        """Capture an authorized payment.
+
+        Args:
+            order_id: Commerce order ID from create_checkout
+
+        Returns:
+            Dict with capture result (order status, payment details)
+        """
+        data = await self._request(
+            "POST",
+            f"/api/v1/checkout/capture/{order_id}",
+        )
+
+        logger.info("Checkout captured", order_id=order_id)
+        return data
+
+    async def charge(
+        self,
+        customer_id: str,
+        amount_cents: int,
+        currency: str = "usd",
+        description: str = "",
+        metadata: dict | None = None,
+    ) -> dict[str, Any]:
+        """Single-step charge (authorize + capture).
+
+        Args:
+            customer_id: Commerce customer ID
+            amount_cents: Amount in cents
+            currency: Currency code
+            description: Charge description
+            metadata: Additional metadata
+
+        Returns:
+            Dict with order_id, payment details
+        """
+        payload: dict[str, Any] = {
+            "customer_id": customer_id,
+            "amount": amount_cents,
+            "currency": currency,
+        }
+        if description:
+            payload["description"] = description
+        if metadata:
+            payload["metadata"] = metadata
+
+        return await self._request(
+            "POST",
+            "/api/v1/checkout/charge",
+            json=payload,
+        )
+
+    # =========================================================================
+    # Order Management
+    # =========================================================================
+
+    async def get_user_orders(
+        self,
+        customer_id: str,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Get orders for a customer.
+
+        Args:
+            customer_id: Commerce customer ID
+            limit: Max orders to return
+
+        Returns:
+            List of order dicts
+        """
+        data = await self._request(
+            "GET",
+            f"/api/v1/user/{customer_id}/orders",
+            params={"limit": limit},
+        )
+        return data.get("data", [])
+
+    # =========================================================================
     # Subscription Management
     # =========================================================================
 
@@ -214,13 +350,13 @@ class HanzoCommerceClient:
         plan_slug: str,
         project_id: UUID,
     ) -> Subscription:
-        """
-        Create subscription for a plan.
-        Plans: bootnode-free, bootnode-payg, bootnode-enterprise
+        """Create subscription for a plan.
+
+        Plans: bootnode-free, bootnode-payg, bootnode-growth, bootnode-enterprise
         """
         data = await self._request(
             "POST",
-            "/api/v1/subscriptions",
+            "/api/v1/subscribe",
             json={
                 "customer_id": customer_id,
                 "plan_slug": plan_slug,
@@ -254,7 +390,7 @@ class HanzoCommerceClient:
 
     async def get_subscription(self, subscription_id: str) -> Subscription:
         """Get subscription by ID."""
-        data = await self._request("GET", f"/api/v1/subscriptions/{subscription_id}")
+        data = await self._request("GET", f"/api/v1/subscribe/{subscription_id}")
         return Subscription(
             id=data["id"],
             customer_id=data["customer_id"],
@@ -275,18 +411,18 @@ class HanzoCommerceClient:
     async def get_subscriptions_by_customer(
         self, customer_id: str
     ) -> list[Subscription]:
-        """Get all subscriptions for a customer."""
+        """Get all subscriptions for a customer (via user orders endpoint)."""
         data = await self._request(
             "GET",
-            "/api/v1/subscriptions",
-            params={"customer_id": customer_id},
+            f"/api/v1/user/{customer_id}/orders",
+            params={"type": "subscription"},
         )
         return [
             Subscription(
                 id=s["id"],
-                customer_id=s["customer_id"],
-                plan_slug=s["plan_slug"],
-                status=SubscriptionStatus(s["status"]),
+                customer_id=s.get("customer_id", customer_id),
+                plan_slug=s.get("plan_slug", ""),
+                status=SubscriptionStatus(s.get("status", "active")),
                 current_period_start=datetime.fromisoformat(s["current_period_start"]),
                 current_period_end=datetime.fromisoformat(s["current_period_end"]),
                 cancel_at_period_end=s.get("cancel_at_period_end", False),
@@ -304,7 +440,7 @@ class HanzoCommerceClient:
         """Upgrade or downgrade subscription."""
         data = await self._request(
             "PATCH",
-            f"/api/v1/subscriptions/{subscription_id}",
+            f"/api/v1/subscribe/{subscription_id}",
             json={"plan_slug": plan_slug},
         )
 
@@ -331,13 +467,14 @@ class HanzoCommerceClient:
         subscription_id: str,
         immediately: bool = False,
     ) -> bool:
-        """
-        Cancel subscription.
+        """Cancel subscription.
+
+        Commerce uses DELETE /api/v1/subscribe/:id.
         If immediately=False, cancels at end of billing period.
         """
         data = await self._request(
-            "POST",
-            f"/api/v1/subscriptions/{subscription_id}/cancel",
+            "DELETE",
+            f"/api/v1/subscribe/{subscription_id}",
             json={"immediately": immediately},
         )
 
@@ -347,24 +484,6 @@ class HanzoCommerceClient:
             immediately=immediately,
         )
         return data.get("cancelled", True)
-
-    async def reactivate_subscription(self, subscription_id: str) -> Subscription:
-        """Reactivate a cancelled subscription (if not yet expired)."""
-        data = await self._request(
-            "POST",
-            f"/api/v1/subscriptions/{subscription_id}/reactivate",
-        )
-        return Subscription(
-            id=data["id"],
-            customer_id=data["customer_id"],
-            plan_slug=data["plan_slug"],
-            status=SubscriptionStatus(data["status"]),
-            current_period_start=datetime.fromisoformat(data["current_period_start"]),
-            current_period_end=datetime.fromisoformat(data["current_period_end"]),
-            cancel_at_period_end=data.get("cancel_at_period_end", False),
-            metadata=data.get("metadata", {}),
-            created_at=datetime.fromisoformat(data["created_at"]),
-        )
 
     # =========================================================================
     # Usage Metering (for PAYG)
@@ -377,10 +496,13 @@ class HanzoCommerceClient:
         timestamp: datetime,
         idempotency_key: str | None = None,
     ) -> None:
-        """Report metered usage for PAYG billing."""
+        """Report metered usage for PAYG billing.
+
+        Commerce handles metering internally and creates Square invoices.
+        """
         await self._request(
             "POST",
-            f"/api/v1/subscriptions/{subscription_id}/usage",
+            f"/api/v1/subscribe/{subscription_id}/usage",
             json={
                 "quantity": compute_units,
                 "timestamp": timestamp.isoformat(),
@@ -410,7 +532,7 @@ class HanzoCommerceClient:
 
         return await self._request(
             "GET",
-            f"/api/v1/subscriptions/{subscription_id}/usage",
+            f"/api/v1/subscribe/{subscription_id}/usage",
             params=params or None,
         )
 
@@ -423,11 +545,11 @@ class HanzoCommerceClient:
         customer_id: str,
         limit: int = 10,
     ) -> list[Invoice]:
-        """Get customer invoices."""
+        """Get customer invoices (mapped from Commerce orders)."""
         data = await self._request(
             "GET",
-            "/api/v1/invoices",
-            params={"customer_id": customer_id, "limit": limit},
+            f"/api/v1/user/{customer_id}/orders",
+            params={"limit": limit},
         )
         return [
             Invoice(
@@ -461,8 +583,8 @@ class HanzoCommerceClient:
         ]
 
     async def get_invoice(self, invoice_id: str) -> Invoice:
-        """Get specific invoice."""
-        inv = await self._request("GET", f"/api/v1/invoices/{invoice_id}")
+        """Get specific invoice (mapped from Commerce order)."""
+        inv = await self._request("GET", f"/api/v1/order/{invoice_id}")
         return Invoice(
             id=inv["id"],
             customer_id=inv["customer_id"],
@@ -494,8 +616,8 @@ class HanzoCommerceClient:
         try:
             inv = await self._request(
                 "GET",
-                "/api/v1/invoices/upcoming",
-                params={"customer_id": customer_id},
+                f"/api/v1/user/{customer_id}/orders",
+                params={"status": "draft", "limit": 1},
             )
             return Invoice(
                 id=inv.get("id", "upcoming"),
@@ -521,6 +643,18 @@ class HanzoCommerceClient:
             if e.status_code == 404:
                 return None
             raise
+
+    # =========================================================================
+    # Payment Methods (via Commerce → Square)
+    # =========================================================================
+
+    async def get_payment_methods(self, customer_id: str) -> list[dict[str, Any]]:
+        """Get payment methods for a customer (Square cards on file)."""
+        data = await self._request(
+            "GET",
+            f"/api/v1/user/{customer_id}/paymentmethods",
+        )
+        return data.get("data", [])
 
 
 # Global singleton

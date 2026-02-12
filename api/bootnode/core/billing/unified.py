@@ -10,7 +10,7 @@ Flow:
 4. All billing operations use the linked customer
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any
 from uuid import UUID
 
@@ -35,7 +35,7 @@ class UnifiedUser(BaseModel):
 
     # Commerce Customer (created on first billing access)
     commerce_customer_id: str | None = None
-    stripe_customer_id: str | None = None
+    square_customer_id: str | None = None
 
     # Billing Status
     has_payment_method: bool = False
@@ -53,7 +53,10 @@ class UnifiedUser(BaseModel):
 
         if commerce_data:
             user.commerce_customer_id = commerce_data.get("id")
-            user.stripe_customer_id = commerce_data.get("stripe_customer_id")
+            # Square customer ID is nested under accounts
+            accounts = commerce_data.get("accounts", {})
+            if isinstance(accounts, dict):
+                user.square_customer_id = accounts.get("square")
             user.has_payment_method = commerce_data.get("has_payment_method", False)
             user.default_payment_method = commerce_data.get("default_payment_method")
 
@@ -70,8 +73,8 @@ class UnifiedBillingClient:
     def __init__(self) -> None:
         settings = get_settings()
         self.iam_url = settings.iam_url
-        self.commerce_url = settings.hanzo_commerce_url
-        self.commerce_api_key = settings.hanzo_commerce_api_key
+        self.commerce_url = settings.commerce_url
+        self.commerce_api_key = settings.commerce_api_key
         self._timeout = httpx.Timeout(30.0)
 
     def _commerce_headers(self) -> dict[str, str]:
@@ -115,28 +118,18 @@ class UnifiedBillingClient:
         """Find Commerce customer by Hanzo IAM ID."""
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             try:
-                # Try v2 API endpoint first
                 response = await client.get(
-                    f"{self.commerce_url}/api/v2/customers",
+                    f"{self.commerce_url}/api/v1/user",
                     params={"hanzo_id": hanzo_id},
                     headers=self._commerce_headers(),
                 )
 
                 if response.status_code == 200:
                     data = response.json()
-                    customers = data.get("customers", [])
+                    customers = data.get("data", [])
                     if customers:
                         return customers[0]
-
-                # Fallback: try by email lookup via v1 API
-                response = await client.get(
-                    f"{self.commerce_url}/api/v1/customers",
-                    params={"hanzo_id": hanzo_id},
-                    headers=self._commerce_headers(),
-                )
-
-                if response.status_code == 200:
-                    data = response.json()
+                    # Single-object response
                     if data.get("id"):
                         return data
 
@@ -150,7 +143,7 @@ class UnifiedBillingClient:
         """Create Commerce customer linked to IAM user."""
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.post(
-                f"{self.commerce_url}/api/v1/customers",
+                f"{self.commerce_url}/api/v1/user",
                 json={
                     "email": iam_user.email,
                     "name": iam_user.name,
@@ -193,12 +186,12 @@ class UnifiedBillingClient:
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.get(
-                f"{self.commerce_url}/api/v1/customers/{unified_user.commerce_customer_id}/subscriptions",
+                f"{self.commerce_url}/api/v1/user/{unified_user.commerce_customer_id}/orders",
                 headers=self._commerce_headers(),
             )
 
             if response.status_code == 200:
-                return response.json().get("subscriptions", [])
+                return response.json().get("data", [])
 
             return []
 
@@ -211,17 +204,18 @@ class UnifiedBillingClient:
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.get(
-                f"{self.commerce_url}/api/v1/customers/{unified_user.commerce_customer_id}/invoices",
+                f"{self.commerce_url}/api/v1/user/{unified_user.commerce_customer_id}/orders",
+                params={"type": "invoice"},
                 headers=self._commerce_headers(),
             )
 
             if response.status_code == 200:
-                return response.json().get("invoices", [])
+                return response.json().get("data", [])
 
             return []
 
     async def get_customer_payment_methods(self, iam_user: IAMUser) -> list[dict]:
-        """Get payment methods for IAM user."""
+        """Get payment methods for IAM user (Square cards via Commerce)."""
         unified_user = await self.get_or_create_customer(iam_user)
 
         if not unified_user.commerce_customer_id:
@@ -229,12 +223,12 @@ class UnifiedBillingClient:
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.get(
-                f"{self.commerce_url}/api/v1/customers/{unified_user.commerce_customer_id}/payment-methods",
+                f"{self.commerce_url}/api/v1/user/{unified_user.commerce_customer_id}/paymentmethods",
                 headers=self._commerce_headers(),
             )
 
             if response.status_code == 200:
-                return response.json().get("payment_methods", [])
+                return response.json().get("data", [])
 
             return []
 
@@ -253,7 +247,7 @@ class UnifiedBillingClient:
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.post(
-                f"{self.commerce_url}/api/v1/subscriptions",
+                f"{self.commerce_url}/api/v1/subscribe",
                 json={
                     "customer_id": unified_user.commerce_customer_id,
                     "plan_id": plan_id,
@@ -282,9 +276,8 @@ class UnifiedBillingClient:
         """Report metered usage for PAYG billing."""
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.post(
-                f"{self.commerce_url}/api/v1/usage",
+                f"{self.commerce_url}/api/v1/subscribe/{subscription_id}/usage",
                 json={
-                    "subscription_id": subscription_id,
                     "quantity": compute_units,
                     "unit": "compute_units",
                     "timestamp": timestamp.isoformat(),
@@ -316,7 +309,7 @@ class UnifiedBillingClient:
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.patch(
-                f"{self.commerce_url}/api/v1/customers/{unified_user.commerce_customer_id}",
+                f"{self.commerce_url}/api/v1/user/{unified_user.commerce_customer_id}",
                 json={
                     "email": iam_user.email,
                     "name": iam_user.name,
@@ -324,7 +317,7 @@ class UnifiedBillingClient:
                         "iam_id": iam_user.id,
                         "iam_org": iam_user.org,
                         "iam_roles": iam_user.roles,
-                        "last_sync": datetime.utcnow().isoformat(),
+                        "last_sync": datetime.now(UTC).isoformat(),
                     },
                 },
                 headers=self._commerce_headers(),

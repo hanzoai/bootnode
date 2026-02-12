@@ -1,16 +1,18 @@
-"""Billing API - Usage tracking and subscription management."""
+"""Billing API - Usage tracking, subscription management, and Commerce integration."""
 
 import json
 import uuid
 from datetime import date, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
 from bootnode.api.deps import DbDep, ProjectDep
+from bootnode.config import get_settings
 from bootnode.core.billing import (
     TIER_LIMITS,
+    CommerceError,
     Invoice,
     PricingTier,
     UsageSummary,
@@ -135,8 +137,41 @@ class LimitsCheckResponse(BaseModel):
     rate_limit_per_second: int
 
 
+class CheckoutRequest(BaseModel):
+    """Commerce Checkout request (Square payment via Commerce)."""
+
+    tier: PricingTier
+    nonce: str | None = None  # Square payment nonce
+    source_id: str | None = None  # Square card on file
+    success_url: str | None = None
+    cancel_url: str | None = None
+
+
+class CheckoutResponse(BaseModel):
+    """Commerce Checkout response."""
+
+    order_id: str | None = None
+    checkout_url: str | None = None
+    authorization_id: str | None = None
+
+
+class CaptureRequest(BaseModel):
+    """Capture an authorized payment."""
+
+    pass
+
+
+class SyncStatusResponse(BaseModel):
+    """Usage sync status response."""
+
+    running: bool
+    interval_seconds: int
+    last_sync: str | None
+    lock_held: bool
+
+
 # =============================================================================
-# Endpoints
+# Usage & Subscription Endpoints (unchanged — payment-agnostic)
 # =============================================================================
 
 
@@ -197,7 +232,7 @@ async def upgrade_subscription(
 ) -> Subscription:
     """Upgrade subscription to a new tier.
 
-    For paid tiers, a hanzo_subscription_id from Hanzo Commerce is required.
+    For paid tiers, a hanzo_subscription_id from Commerce is required.
     """
     current = await billing_service.get_or_create_subscription(project.id, db)
     current_tier = PricingTier(current.tier)
@@ -321,56 +356,107 @@ async def check_limits(
 
 
 # =============================================================================
-# Hanzo Commerce Integration
+# Commerce Checkout (Square payments via Commerce API)
 # =============================================================================
 
 
-class CommerceInvoiceResponse(BaseModel):
-    """Commerce invoice response."""
-
-    id: str
-    customer_id: str
-    subscription_id: str | None
-    status: str
-    amount_due: int
-    amount_paid: int
-    currency: str
-    period_start: datetime | None
-    period_end: datetime | None
-    paid_at: datetime | None
-    hosted_invoice_url: str | None
-    pdf_url: str | None
-    created_at: datetime
+TIER_TO_PLAN_SLUG: dict[PricingTier, str] = {
+    PricingTier.FREE: "bootnode-free",
+    PricingTier.PAY_AS_YOU_GO: "bootnode-payg",
+    PricingTier.GROWTH: "bootnode-growth",
+    PricingTier.ENTERPRISE: "bootnode-enterprise",
+}
 
 
-class SyncStatusResponse(BaseModel):
-    """Usage sync status response."""
+@router.post("/checkout", response_model=CheckoutResponse)
+async def create_checkout(
+    request: CheckoutRequest,
+    project: ProjectDep,
+    db: DbDep,
+) -> CheckoutResponse:
+    """Create a Commerce checkout session (Square payment).
 
-    running: bool
-    interval_seconds: int
-    last_sync: str | None
-    lock_held: bool
+    Returns an order_id and checkout_url for the user to complete payment.
+    After payment, Commerce webhooks handle provisioning.
+    """
+    settings = get_settings()
+
+    if request.tier in (PricingTier.FREE, PricingTier.ENTERPRISE):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Checkout not available for {request.tier.value} tier",
+        )
+
+    subscription = await billing_service.get_or_create_subscription(project.id, db)
+    customer_id = subscription.hanzo_customer_id
+
+    if not customer_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No billing account found. Use /billing/account to set up billing first.",
+        )
+
+    plan_slug = TIER_TO_PLAN_SLUG.get(request.tier, "bootnode-payg")
+    success_url = request.success_url or f"{settings.frontend_url}/billing?checkout=success"
+    cancel_url = request.cancel_url or f"{settings.frontend_url}/billing?checkout=cancelled"
+
+    try:
+        result = await commerce_client.create_checkout(
+            customer_id=customer_id,
+            plan_slug=plan_slug,
+            project_id=project.id,
+            nonce=request.nonce,
+            source_id=request.source_id,
+            success_url=success_url,
+            cancel_url=cancel_url,
+        )
+        return CheckoutResponse(
+            order_id=result.get("order_id"),
+            checkout_url=result.get("checkout_url"),
+            authorization_id=result.get("authorization_id"),
+        )
+    except CommerceError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=e.message,
+        )
+
+
+@router.post("/checkout/capture/{order_id}")
+async def capture_checkout(
+    order_id: str,
+) -> dict:
+    """Capture an authorized Commerce payment."""
+    try:
+        result = await commerce_client.capture_checkout(order_id)
+        return result
+    except CommerceError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=e.message,
+        )
+
+
+# =============================================================================
+# Commerce Webhooks
+# =============================================================================
 
 
 @router.post("/webhooks/commerce")
 async def commerce_webhook(request: Request) -> dict:
-    """
-    Handle Hanzo Commerce webhooks.
+    """Handle Hanzo Commerce webhooks.
 
-    Processes subscription lifecycle events, invoice events, etc.
-    Verifies HMAC-SHA256 signature before processing.
+    Verifies HMAC signature and processes subscription/order/payment events.
     """
     payload = await request.body()
     signature = request.headers.get("X-Commerce-Signature", "")
 
-    # Verify signature
     if not webhook_handler.verify_signature(payload, signature):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid webhook signature",
         )
 
-    # Parse and handle event
     try:
         event = json.loads(payload)
     except json.JSONDecodeError:
@@ -383,66 +469,25 @@ async def commerce_webhook(request: Request) -> dict:
     return {"received": True, **result}
 
 
-@router.get("/commerce/invoices", response_model=list[CommerceInvoiceResponse])
-async def get_commerce_invoices(
-    project: ProjectDep,
-    db: DbDep,
-    limit: int = 10,
-) -> list[CommerceInvoiceResponse]:
-    """
-    Get invoices from Hanzo Commerce.
-
-    Returns invoices for the project's Commerce customer.
-    """
-    subscription = await billing_service.get_subscription(project.id, db)
-
-    if not subscription or not subscription.hanzo_customer_id:
-        return []
-
-    try:
-        invoices = await commerce_client.get_customer_invoices(
-            subscription.hanzo_customer_id,
-            limit=limit,
-        )
-        return [
-            CommerceInvoiceResponse(
-                id=inv.id,
-                customer_id=inv.customer_id,
-                subscription_id=inv.subscription_id,
-                status=inv.status.value,
-                amount_due=inv.amount_due,
-                amount_paid=inv.amount_paid,
-                currency=inv.currency,
-                period_start=inv.period_start,
-                period_end=inv.period_end,
-                paid_at=inv.paid_at,
-                hosted_invoice_url=inv.hosted_invoice_url,
-                pdf_url=inv.pdf_url,
-                created_at=inv.created_at,
-            )
-            for inv in invoices
-        ]
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to fetch invoices from Commerce: {str(e)}",
-        )
+# =============================================================================
+# Usage Sync (to Commerce for metered billing)
+# =============================================================================
 
 
-@router.post("/commerce/sync")
+@router.post("/sync")
 async def sync_usage(
     project: ProjectDep,
 ) -> dict:
-    """
-    Manually sync usage to Hanzo Commerce.
+    """Manually sync usage to Commerce.
 
-    Useful before subscription changes to ensure all usage is reported.
+    Reports accumulated compute units to Commerce for metered billing.
+    Commerce handles invoicing via Square.
     """
     result = await usage_sync_worker.sync_project(project.id)
     return result
 
 
-@router.get("/commerce/sync/status", response_model=SyncStatusResponse)
+@router.get("/sync/status", response_model=SyncStatusResponse)
 async def get_sync_status() -> SyncStatusResponse:
     """Get usage sync worker status."""
     status_data = await usage_sync_worker.get_status()
@@ -450,26 +495,22 @@ async def get_sync_status() -> SyncStatusResponse:
 
 
 # =============================================================================
-# Unified IAM + Commerce Endpoints
+# Unified IAM + Commerce Billing
 # =============================================================================
 
+from bootnode.core.billing.unified import get_unified_billing_client
 from bootnode.core.iam import IAMUser, get_current_user
-from bootnode.core.billing.unified import (
-    UnifiedUser,
-    get_unified_billing_client,
-)
-from fastapi import Depends
 
 
 class UnifiedUserResponse(BaseModel):
-    """Unified user with IAM and Commerce data."""
+    """Unified user with IAM and Commerce billing data."""
 
     iam_id: str
     email: str
     name: str
     org: str
     commerce_customer_id: str | None
-    stripe_customer_id: str | None
+    square_customer_id: str | None
     has_payment_method: bool
     default_payment_method: str | None
 
@@ -490,23 +531,22 @@ class PaymentMethodResponse(BaseModel):
 async def get_billing_account(
     user: IAMUser = Depends(get_current_user),
 ) -> UnifiedUserResponse:
-    """Get unified billing account for authenticated user.
+    """Get billing account for authenticated user.
 
-    Auto-creates Commerce customer if not exists, linking to IAM user.
-    This is the main entry point for users accessing billing.
+    Links IAM user to Commerce customer. Creates Commerce customer if needed.
     """
-    client = get_unified_billing_client()
-    unified = await client.get_or_create_customer(user)
+    unified = get_unified_billing_client()
+    unified_user = await unified.get_or_create_customer(user)
 
     return UnifiedUserResponse(
-        iam_id=unified.iam_id,
-        email=unified.email,
-        name=unified.name,
-        org=unified.org,
-        commerce_customer_id=unified.commerce_customer_id,
-        stripe_customer_id=unified.stripe_customer_id,
-        has_payment_method=unified.has_payment_method,
-        default_payment_method=unified.default_payment_method,
+        iam_id=unified_user.iam_id,
+        email=unified_user.email,
+        name=unified_user.name,
+        org=unified_user.org,
+        commerce_customer_id=unified_user.commerce_customer_id,
+        square_customer_id=unified_user.square_customer_id,
+        has_payment_method=unified_user.has_payment_method,
+        default_payment_method=unified_user.default_payment_method,
     )
 
 
@@ -514,36 +554,35 @@ async def get_billing_account(
 async def get_account_subscriptions(
     user: IAMUser = Depends(get_current_user),
 ) -> list[dict]:
-    """Get all subscriptions for authenticated user across Commerce."""
-    client = get_unified_billing_client()
-    return await client.get_customer_subscriptions(user)
+    """Get all Commerce subscriptions for authenticated user."""
+    unified = get_unified_billing_client()
+    return await unified.get_customer_subscriptions(user)
 
 
 @router.get("/account/invoices")
 async def get_account_invoices(
     user: IAMUser = Depends(get_current_user),
 ) -> list[dict]:
-    """Get all invoices for authenticated user."""
-    client = get_unified_billing_client()
-    return await client.get_customer_invoices(user)
+    """Get all Commerce invoices for authenticated user."""
+    unified = get_unified_billing_client()
+    return await unified.get_customer_invoices(user)
 
 
 @router.get("/account/payment-methods", response_model=list[PaymentMethodResponse])
 async def get_account_payment_methods(
     user: IAMUser = Depends(get_current_user),
 ) -> list[PaymentMethodResponse]:
-    """Get payment methods for authenticated user."""
-    client = get_unified_billing_client()
-    methods = await client.get_customer_payment_methods(user)
-
+    """Get payment methods for authenticated user (Square cards via Commerce)."""
+    unified = get_unified_billing_client()
+    methods = await unified.get_customer_payment_methods(user)
     return [
         PaymentMethodResponse(
             id=m.get("id", ""),
             type=m.get("type", "card"),
-            brand=m.get("card", {}).get("brand"),
-            last4=m.get("card", {}).get("last4"),
-            exp_month=m.get("card", {}).get("exp_month"),
-            exp_year=m.get("card", {}).get("exp_year"),
+            brand=m.get("card", {}).get("brand") if isinstance(m.get("card"), dict) else None,
+            last4=m.get("card", {}).get("last4") if isinstance(m.get("card"), dict) else None,
+            exp_month=m.get("card", {}).get("exp_month") if isinstance(m.get("card"), dict) else None,
+            exp_year=m.get("card", {}).get("exp_year") if isinstance(m.get("card"), dict) else None,
             is_default=m.get("is_default", False),
         )
         for m in methods
@@ -556,24 +595,8 @@ async def sync_iam_to_commerce(
 ) -> dict:
     """Sync IAM user data to Commerce customer.
 
-    Updates Commerce with latest IAM profile data.
+    Updates Commerce customer with latest IAM profile data.
     """
-    client = get_unified_billing_client()
-    result = await client.sync_iam_to_commerce(user)
-    return {"synced": True, "customer": result}
-
-
-@router.post("/account/subscribe")
-async def create_account_subscription(
-    plan_id: str,
-    project: ProjectDep,
-    user: IAMUser = Depends(get_current_user),
-) -> dict:
-    """Create subscription for authenticated user.
-
-    Links the subscription to both the IAM user (via Commerce)
-    and the bootnode project.
-    """
-    client = get_unified_billing_client()
-    result = await client.create_subscription(user, plan_id, project.id)
-    return result
+    unified = get_unified_billing_client()
+    result = await unified.sync_iam_to_commerce(user)
+    return {"synced": True, "result": result}

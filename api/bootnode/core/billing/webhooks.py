@@ -1,9 +1,10 @@
 """Hanzo Commerce webhook handler.
 
-Handles webhooks from Hanzo Commerce for:
+Handles webhooks from Hanzo Commerce (Square-based) for:
+- Order events (authorize, complete, cancel)
 - Subscription lifecycle events
 - Invoice events
-- Payment events
+- Payment events (paid, failed, refunded)
 """
 
 import hashlib
@@ -46,7 +47,7 @@ class CommerceWebhookHandler:
 
     def __init__(self) -> None:
         settings = get_settings()
-        self.webhook_secret = settings.hanzo_commerce_webhook_secret
+        self.webhook_secret = settings.commerce_webhook_secret
 
     def verify_signature(self, payload: bytes, signature: str) -> bool:
         """
@@ -92,12 +93,22 @@ class CommerceWebhookHandler:
         )
 
         handlers = {
+            # Order events
+            "order.completed": self.handle_order_completed,
+            "order.cancelled": self.handle_order_cancelled,
+            # Subscription lifecycle
             "subscription.created": self.handle_subscription_created,
             "subscription.updated": self.handle_subscription_updated,
             "subscription.cancelled": self.handle_subscription_cancelled,
             "subscription.reactivated": self.handle_subscription_reactivated,
+            # Invoice events
             "invoice.paid": self.handle_invoice_paid,
             "invoice.payment_failed": self.handle_invoice_failed,
+            # Payment events (forwarded through Commerce from Square)
+            "payment.paid": self.handle_payment_paid,
+            "payment.failed": self.handle_payment_failed,
+            "payment.refunded": self.handle_payment_refunded,
+            # Customer events
             "customer.created": self.handle_customer_created,
             "customer.updated": self.handle_customer_updated,
         }
@@ -340,6 +351,91 @@ class CommerceWebhookHandler:
         return {"subscription_id": subscription_id, "tier": tier.value}
 
     # =========================================================================
+    # Order Handlers
+    # =========================================================================
+
+    async def handle_order_completed(self, data: dict[str, Any]) -> dict:
+        """Handle order.completed — payment captured successfully.
+
+        May trigger subscription provisioning if order is for a plan upgrade.
+        """
+        order_id = data.get("id")
+        customer_id = data.get("customer_id")
+        metadata = data.get("metadata", {})
+        plan_slug = metadata.get("plan_slug")
+        project_id_str = metadata.get("project_id")
+
+        logger.info(
+            "Order completed",
+            order_id=order_id,
+            customer_id=customer_id,
+            plan_slug=plan_slug,
+        )
+
+        # If order is for a plan subscription, provision it
+        if plan_slug and project_id_str:
+            try:
+                project_id = UUID(project_id_str)
+            except ValueError:
+                return {"order_id": order_id, "error": "invalid_project_id"}
+
+            tier = PLAN_TO_TIER.get(plan_slug, PricingTier.FREE)
+            limits = get_tier_limits(tier)
+            subscription_id = data.get("subscription_id")
+
+            async with async_session() as db:
+                result = await db.execute(
+                    select(Subscription).where(Subscription.project_id == project_id)
+                )
+                subscription = result.scalar_one_or_none()
+
+                if subscription:
+                    subscription.tier = tier.value
+                    subscription.monthly_cu_limit = limits.monthly_cu
+                    subscription.rate_limit_per_second = limits.rate_limit_per_second
+                    subscription.max_apps = limits.max_apps
+                    subscription.max_webhooks = limits.max_webhooks
+                    if subscription_id:
+                        subscription.hanzo_subscription_id = subscription_id
+                    if customer_id:
+                        subscription.hanzo_customer_id = customer_id
+                else:
+                    subscription = Subscription(
+                        project_id=project_id,
+                        tier=tier.value,
+                        hanzo_subscription_id=subscription_id,
+                        hanzo_customer_id=customer_id,
+                        monthly_cu_limit=limits.monthly_cu,
+                        rate_limit_per_second=limits.rate_limit_per_second,
+                        max_apps=limits.max_apps,
+                        max_webhooks=limits.max_webhooks,
+                        billing_cycle_start=datetime.now(UTC),
+                        billing_cycle_end=datetime.fromisoformat(
+                            data.get("current_period_end", datetime.now(UTC).isoformat())
+                        ),
+                    )
+                    db.add(subscription)
+
+                await db.commit()
+
+            await self._invalidate_cache(project_id)
+
+        return {"order_id": order_id, "plan_slug": plan_slug}
+
+    async def handle_order_cancelled(self, data: dict[str, Any]) -> dict:
+        """Handle order.cancelled — payment authorization voided."""
+        order_id = data.get("id")
+        reason = data.get("reason", "unknown")
+
+        logger.info(
+            "Order cancelled",
+            order_id=order_id,
+            reason=reason,
+        )
+
+        return {"order_id": order_id, "reason": reason}
+
+    # =========================================================================
     # Invoice Handlers
     # =========================================================================
 
@@ -421,6 +517,55 @@ class CommerceWebhookHandler:
         )
 
         return {"customer_id": customer_id}
+
+    # =========================================================================
+    # Payment Handlers (forwarded from Square via Commerce)
+    # =========================================================================
+
+    async def handle_payment_paid(self, data: dict[str, Any]) -> dict:
+        """Handle payment.paid — successful payment via Square."""
+        payment_id = data.get("id")
+        order_id = data.get("order_id")
+        amount = data.get("amount", 0)
+
+        logger.info(
+            "Payment received",
+            payment_id=payment_id,
+            order_id=order_id,
+            amount_cents=amount,
+        )
+
+        return {"payment_id": payment_id, "amount": amount}
+
+    async def handle_payment_failed(self, data: dict[str, Any]) -> dict:
+        """Handle payment.failed — Square payment declined."""
+        payment_id = data.get("id")
+        order_id = data.get("order_id")
+        error_code = data.get("error_code", "unknown")
+
+        logger.warning(
+            "Payment failed",
+            payment_id=payment_id,
+            order_id=order_id,
+            error_code=error_code,
+        )
+
+        return {"payment_id": payment_id, "error_code": error_code}
+
+    async def handle_payment_refunded(self, data: dict[str, Any]) -> dict:
+        """Handle payment.refunded — refund processed via Square."""
+        payment_id = data.get("id")
+        refund_id = data.get("refund_id")
+        amount = data.get("amount", 0)
+
+        logger.info(
+            "Payment refunded",
+            payment_id=payment_id,
+            refund_id=refund_id,
+            amount_cents=amount,
+        )
+
+        return {"payment_id": payment_id, "refund_id": refund_id, "amount": amount}
 
     # =========================================================================
     # Helpers

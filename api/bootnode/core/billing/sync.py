@@ -1,7 +1,7 @@
-"""Usage sync worker for Hanzo Commerce.
+"""Usage sync worker for Commerce billing.
 
 Periodically syncs compute unit usage from Redis to Hanzo Commerce
-for PAYG (pay-as-you-go) billing.
+for PAYG (pay-as-you-go) metered billing. Commerce handles invoicing via Square.
 """
 
 import asyncio
@@ -33,8 +33,7 @@ class UsageSyncWorker:
     """Periodically sync usage from Redis to Hanzo Commerce."""
 
     def __init__(self, interval_seconds: int = 3600) -> None:
-        """
-        Initialize sync worker.
+        """Initialize sync worker.
 
         Args:
             interval_seconds: Sync interval (default: 1 hour)
@@ -59,19 +58,23 @@ class UsageSyncWorker:
 
     async def _get_payg_subscriptions(
         self, db: AsyncSession
-    ) -> list[tuple[uuid.UUID, str]]:
-        """
-        Get all active PAYG subscriptions.
+    ) -> list[tuple[uuid.UUID, str, str]]:
+        """Get all active PAYG subscriptions.
 
-        Returns list of (project_id, hanzo_subscription_id) tuples.
+        Returns list of (project_id, hanzo_subscription_id, hanzo_customer_id) tuples.
         """
         result = await db.execute(
-            select(Subscription.project_id, Subscription.hanzo_subscription_id).where(
+            select(
+                Subscription.project_id,
+                Subscription.hanzo_subscription_id,
+                Subscription.hanzo_customer_id,
+            ).where(
                 Subscription.tier == PricingTier.PAY_AS_YOU_GO.value,
                 Subscription.hanzo_subscription_id.isnot(None),
+                Subscription.hanzo_customer_id.isnot(None),
             )
         )
-        return [(row[0], row[1]) for row in result.all()]
+        return [(row[0], row[1], row[2]) for row in result.all()]
 
     async def _get_unsync_usage(self, project_id: uuid.UUID) -> int:
         """Get compute units accumulated since last sync."""
@@ -93,11 +96,11 @@ class UsageSyncWorker:
         self,
         project_id: uuid.UUID,
         subscription_id: str,
+        customer_id: str,
     ) -> dict[str, Any]:
-        """
-        Sync usage for a single project.
+        """Sync usage for a single project.
 
-        Returns sync result dict.
+        Reports compute units to Commerce, which handles metered invoicing via Square.
         """
         result = {
             "project_id": str(project_id),
@@ -121,7 +124,7 @@ class UsageSyncWorker:
             sync_time = datetime.now(UTC)
             idempotency_key = f"{project_id}:{sync_time.strftime('%Y-%m-%d-%H')}"
 
-            # Report to Commerce
+            # Report to Commerce (uses subscription_id, Commerce handles Square invoicing)
             await commerce_client.report_usage(
                 subscription_id=subscription_id,
                 compute_units=compute_units,
@@ -158,8 +161,7 @@ class UsageSyncWorker:
         return result
 
     async def sync_all_projects(self) -> dict[str, Any]:
-        """
-        Sync usage for all active PAYG subscriptions.
+        """Sync usage for all active PAYG subscriptions.
 
         Returns summary of sync operation.
         """
@@ -184,8 +186,8 @@ class UsageSyncWorker:
                 subscriptions = await self._get_payg_subscriptions(db)
                 summary["total_projects"] = len(subscriptions)
 
-                for project_id, subscription_id in subscriptions:
-                    result = await self._sync_project(project_id, subscription_id)
+                for project_id, subscription_id, customer_id in subscriptions:
+                    result = await self._sync_project(project_id, subscription_id, customer_id)
 
                     if result["synced"]:
                         summary["synced"] += 1
@@ -217,27 +219,29 @@ class UsageSyncWorker:
         return summary
 
     async def sync_project(self, project_id: uuid.UUID) -> dict[str, Any]:
-        """
-        Sync usage for a specific project immediately.
+        """Sync usage for a specific project immediately.
 
         Useful for on-demand sync before subscription changes.
         """
         async with async_session() as db:
             result = await db.execute(
-                select(Subscription.hanzo_subscription_id).where(
+                select(
+                    Subscription.hanzo_subscription_id,
+                    Subscription.hanzo_customer_id,
+                ).where(
                     Subscription.project_id == project_id
                 )
             )
             row = result.first()
 
-            if not row or not row[0]:
+            if not row or not row[0] or not row[1]:
                 return {
                     "project_id": str(project_id),
                     "synced": False,
                     "error": "No Commerce subscription found",
                 }
 
-            return await self._sync_project(project_id, row[0])
+            return await self._sync_project(project_id, row[0], row[1])
 
     async def run(self) -> None:
         """Run the sync loop."""

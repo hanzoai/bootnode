@@ -5,7 +5,8 @@ Exports:
 - Pricing tiers and limits
 - Real-time usage tracking (Redis)
 - Billing service for subscriptions
-- Hanzo Commerce integration
+- Hanzo Commerce integration (Square-based payments)
+- Unified IAM + Commerce integration
 """
 
 from bootnode.core.billing.commerce import (
@@ -77,7 +78,7 @@ __all__ = [
     "billing_service",
     "UsageSummary",
     "Invoice",
-    # Hanzo Commerce
+    # Hanzo Commerce (Square-based payments)
     "HanzoCommerceClient",
     "commerce_client",
     "CommerceError",
@@ -95,8 +96,12 @@ __all__ = [
     # Usage Sync
     "UsageSyncWorker",
     "usage_sync_worker",
-    # Webhooks
+    # Commerce Webhooks
     "CommerceWebhookHandler",
     "webhook_handler",
     "WebhookVerificationError",
+    # Unified IAM + Commerce
+    "UnifiedBillingClient",
+    "UnifiedUser",
+    "get_unified_billing_client",
 ]
