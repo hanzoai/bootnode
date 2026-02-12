@@ -203,7 +203,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 // Hanzo IAM Login Button Component (for production)
 export function HanzoLoginButton({ org = "hanzo" }: { org?: "hanzo" | "zoo" | "lux" | "pars" }) {
   const handleLogin = () => {
-    const iamUrl = process.env.NEXT_PUBLIC_IAM_URL || "https://iam.hanzo.ai"
+    const iamUrl = process.env.NEXT_PUBLIC_IAM_URL || getBrand().iam.url || "https://iam.hanzo.ai"
     const clientId = process.env.NEXT_PUBLIC_IAM_CLIENT_ID || "bootnode-platform"
     const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`)
 

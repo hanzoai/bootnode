@@ -118,7 +118,7 @@ export const hanzoWeb3: BrandConfig = {
       name: "Lux Network",
       domain: "lux.id",
       color: "#8b5cf6",
-      iam: "https://lux.id",
+      iam: "https://iam.lux.network",
     },
     pars: {
       name: "Pars",
@@ -204,7 +204,7 @@ export const luxCloud: BrandConfig = {
       name: "Lux Network",
       domain: "lux.id",
       color: "#8b5cf6",
-      iam: "https://lux.id",
+      iam: "https://iam.lux.network",
     },
     pars: {
       name: "Pars",

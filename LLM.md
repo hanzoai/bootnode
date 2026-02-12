@@ -176,7 +176,7 @@ Bootnode implements **native ZAP** - no gateway, direct Cap'n Proto RPC over TCP
 
 **Connection**
 ```
-AI Agent → zap://api.bootnode.dev:9999 (direct Cap'n Proto RPC)
+AI Agent → zap://api.bootno.de:9999 (direct Cap'n Proto RPC)
 ```
 
 **Schema Files**
@@ -187,7 +187,7 @@ AI Agent → zap://api.bootnode.dev:9999 (direct Cap'n Proto RPC)
 ```python
 from hanzo_zap import Client
 
-async with Client.connect("zap://api.bootnode.dev:9999") as client:
+async with Client.connect("zap://api.bootno.de:9999") as client:
     # Initialize connection
     server_info = await client.init({"name": "my-agent", "version": "1.0"})
 
@@ -215,7 +215,7 @@ GET /v1/zap/health        # Health check
 **Code Generation**
 ```bash
 # Get schema and compile
-curl -H "X-API-Key: $KEY" https://api.bootnode.dev/v1/zap/schema > bootnode.zap
+curl -H "X-API-Key: $KEY" https://api.bootno.de/v1/zap/schema > bootnode.zap
 zapc compile bootnode.zap --out=bootnode.capnp
 
 # Generate client code
@@ -427,8 +427,8 @@ All systems tested and operational:
 | Sync | internal | ✅ | GitOps sync |
 
 ### Pending Deployment
-- **Cloud/LLM** (casibase): Requires IAM application configuration
-- **Commerce**: For unified billing with Square
+- **Cloud/LLM**: cloud.hanzo.ai replaced with static landing page (nginx)
+- **Commerce**: Deployed to hanzo-k8s, PVC `commerce-data` (5Gi), CI building latest image with SQLite bridge
 - **KMS External Access**: Needs Cloudflare SSL configuration (Flexible mode)
 
 ### Scaled Down (Image Issues)
@@ -1036,14 +1036,14 @@ The frontend supports automatic white-labeling based on domain or environment va
 | Hanzo Web3 | web3.hanzo.ai | hanzo.id | `NEXT_PUBLIC_BRAND=hanzo` (default) |
 | Lux Cloud | lux.cloud | lux.id | `NEXT_PUBLIC_BRAND=lux` |
 | Zoo Labs | web3.zoo.ngo | zoo.id | `NEXT_PUBLIC_BRAND=zoo` |
-| Bootnode | bootnode.dev | hanzo.id | `NEXT_PUBLIC_BRAND=bootnode` |
+| Bootnode | bootno.de | hanzo.id | `NEXT_PUBLIC_BRAND=bootnode` |
 
 ### Auto-Detection
 Brand is automatically detected from the deployment domain:
 - `*.hanzo.ai` → Hanzo Web3
 - `*.lux.cloud` or `*.lux.network` → Lux Cloud
 - `*.zoo.ngo` or `*.zoo.id` → Zoo Labs
-- `*.bootnode.dev` → Bootnode
+- `*.bootno.de` → Bootnode
 - `localhost` → Hanzo Web3 (default)
 
 ### Usage in Components
@@ -1069,3 +1069,145 @@ import { BrandLogo } from "@/components/brand-logo"
 2. Add domain detection rule in `getBrandKey()` function
 3. Add logo files to `web/public/logo/{brand}-*.svg`
 4. Deploy with appropriate domain or `NEXT_PUBLIC_BRAND` env var
+
+## Hanzo Commerce Billing Integration (2026-02-10)
+
+### Architecture
+Billing goes through Hanzo Commerce (Go service, `commerce.hanzo.ai`) which handles payment processing via Square. Bootnode is a client of Commerce — it never talks to payment processors directly.
+
+```
+User → Dashboard → POST /v1/billing/checkout → Bootnode API → Commerce /api/v1/checkout/authorize → Square
+                 → GET  /v1/billing/account  → Bootnode API → Commerce /api/v1/user → user+subscription
+
+Commerce Webhooks → POST /v1/billing/webhooks/commerce
+  → verify HMAC signature → update local DB → invalidate Redis cache
+
+Usage: API request → Redis CU counter → hourly sync → Commerce /api/v1/subscriptions/:id/usage
+```
+
+### Commerce Service
+- **URL**: `https://commerce.hanzo.ai` (K8s: `commerce.hanzo.svc:8001`)
+- **Image**: `hanzoai/commerce:latest` (Docker Hub, multi-arch)
+- **K8s**: hanzo-k8s cluster, namespace `hanzo`, `emptyDir` (stateless, no PVC)
+- **DB**: SQLite on emptyDir (bridged from legacy GAE Cloud Datastore model layer)
+- **Auth**: JWT access tokens per org (test-secret, test-published, live-secret, live-published)
+- **Source**: `~/work/hanzo/commerce/`
+
+### Generic Env Vars (Commerce infra)
+| Var | Paradigm | Backing | Priority |
+|---|---|---|---|
+| `KV_URL` | Key-value | Redis/Valkey | `KV_URL` > `REDIS_URL` > `VALKEY_URL` > `VALKEY_ADDR` |
+| `S3_URL` | Object storage | MinIO/S3 | `S3_URL` > `S3_ENDPOINT`+keys > `MINIO_*` |
+| `DATASTORE_URL` | Analytics/OLAP | ClickHouse | `DATASTORE_URL` > `COMMERCE_DATASTORE` |
+| `DOC_URL` | Document DB | FerretDB (PG-backed) | Future |
+| `SQL_URL` | Relational | PostgreSQL | Future |
+
+### Commerce API Endpoints (used by Bootnode)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/checkout/authorize` | POST | Authorize payment via Square (nonce) |
+| `/api/v1/checkout/capture/:orderid` | POST | Capture authorized payment |
+| `/api/v1/checkout/charge` | POST | Single-step charge |
+| `/api/v1/subscribe` | POST | Create subscription |
+| `/api/v1/subscribe/:id` | GET | Get subscription |
+| `/api/v1/subscribe/:id` | PATCH | Update subscription |
+| `/api/v1/subscribe/:id` | DELETE | Cancel subscription |
+| `/api/v1/user` | GET | Get user + subscription data |
+| `/api/v1/order` | GET | List orders |
+| `/health` | GET | Health check |
+
+### Bootnode Billing Key Files
+- `api/bootnode/core/billing/commerce.py` — httpx client for Commerce API
+- `api/bootnode/core/billing/webhooks.py` — Commerce webhook handler (HMAC verified)
+- `api/bootnode/core/billing/unified.py` — IAM + Commerce integration (links users)
+- `api/bootnode/core/billing/sync.py` — Usage sync worker (reports CU to Commerce)
+- `api/bootnode/core/billing/compute_units.py` — CU calculation (payment-agnostic)
+- `api/bootnode/core/billing/tiers.py` — Tier definitions (Free/PAYG/Growth/Enterprise)
+- `api/bootnode/core/billing/tracker.py` — Redis-based usage tracking
+- `api/bootnode/core/billing/service.py` — Billing service orchestration
+
+### Bootnode Billing API Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1/billing/checkout` | POST | Create checkout via Commerce → Square |
+| `/v1/billing/checkout/capture/:order_id` | POST | Capture via Commerce |
+| `/v1/billing/account` | GET | Unified IAM + Commerce account |
+| `/v1/billing/account/subscriptions` | GET | Subscriptions from Commerce |
+| `/v1/billing/account/invoices` | GET | Invoices from Commerce |
+| `/v1/billing/account/payment-methods` | GET | Payment methods (Square) |
+| `/v1/billing/webhooks/commerce` | POST | Commerce webhook receiver |
+| `/v1/billing/sync` | POST | Manual usage sync to Commerce |
+| `/v1/billing/sync/status` | GET | Sync worker status |
+| `/v1/billing/usage` | GET | Local usage (Redis/ClickHouse) |
+| `/v1/billing/tiers` | GET | Tier definitions (no Commerce dependency) |
+
+### Config (env vars)
+```
+HANZO_COMMERCE_URL=https://commerce.hanzo.ai
+HANZO_COMMERCE_API_KEY=eyJ0eXAi...  (from Commerce seed)
+HANZO_COMMERCE_WEBHOOK_SECRET=...
+```
+
+### Commerce Seed Data (org: bootnode)
+- **Org ID**: `AWhEeDNQO8jjrboh3`
+- **Plans**: bootnode-free ($0), bootnode-payg ($0 + metered), bootnode-growth ($49), bootnode-enterprise ($0)
+- **API Keys**: test-secret, test-published, live-secret, live-published
+- **Square Config**: from env vars (SQUARE_APPLICATION_ID, SQUARE_ACCESS_TOKEN, SQUARE_LOCATION_ID)
+
+### What Was Removed
+- All Stripe SDK code (`stripe_client.py`, `stripe_webhooks.py`, `stripe_products.py`)
+- `setup_stripe.py` script
+- Stripe config vars (stripe_secret_key, stripe_publishable_key, etc.)
+- `stripe>=11.0.0` dependency from pyproject.toml
+- `/v1/billing/portal`, `/v1/billing/webhooks/stripe`, `/v1/billing/stripe/*` endpoints
+
+## Hanzo IAM / OAuth Configuration (2026-02-12)
+
+### IAM Backend
+- **Provider**: Casdoor (not Zitadel)
+- **Backend URL**: `https://iam.hanzo.ai` (K8s service)
+- **Frontend URL**: `https://hanzo.id` (Cloudflare Pages + middleware proxy)
+- **Middleware**: `/Users/z/work/hanzo/hanzo.id/functions/_middleware.ts` proxies auth paths to IAM
+
+### OAuth Flow for Console
+- **Provider**: Custom `HanzoIamProvider` in `console/packages/shared/src/server/auth/hanzoIamProvider.ts`
+- **Type**: `oauth` (NOT `oidc` — Casdoor JWT tokens have iss claims that openid-client rejects)
+- **Key settings**: `idToken: false`, `checks: ["state"]`, custom `token.request` function
+- **Token endpoint**: `${serverUrl}/api/login/oauth/access_token`
+- **Userinfo endpoint**: `${serverUrl}/api/userinfo`
+- **Console env**: `IAM_SERVER_URL=https://hanzo.id`, `IAM_CLIENT_ID=hanzo-console-client-id`
+
+### Casdoor Applications (in iam-init-data configmap)
+| App | Display | Homepage |
+|-----|---------|----------|
+| app-console | Hanzo Console | console.hanzo.ai |
+| app-hanzobot | HanzoBot | bot.hanzo.ai |
+| app-cloud | Hanzo Cloud | cloud.hanzo.ai |
+| app-hanzo | Hanzo | hanzo.ai |
+
+### Critical Lesson
+Never set `issuer` on a `type: "oauth"` NextAuth provider pointing at Casdoor. This triggers OIDC discovery which overrides explicit endpoint URLs and causes JWT `iss` validation failures. Use a custom `token.request` function to bypass openid-client's JWT validation.
+
+## Hanzo Bot Deployment (2026-02-12)
+
+### npm Package
+- **Name**: `@hanzo/bot` (scoped, public)
+- **Registry**: https://www.npmjs.com/package/@hanzo/bot
+- **Version**: Calendar-based (YYYY.M.D format, e.g., 2026.2.10)
+
+### GitHub Release
+- **Repo**: hanzoai/bot
+- **Workflow**: `.github/workflows/release.yml` (triggers on `v*` tags or workflow_dispatch)
+- **Steps**: pnpm build → release:check (validates plugin versions match) → npm publish → GitHub Release
+- **Important**: Run `pnpm plugins:sync` before tagging — extensions must match root version
+
+### Branding
+- **Install.sh**: `curl -fsSL https://hanzo.bot/install.sh | bash`
+- **Env prefix**: `HANZO_BOT_` (not `BOTBOT_`)
+- **Emoji**: Ninja (🥷) theme (not lobster/crab)
+- **Tagline**: "Your AI team, deployed everywhere."
+
+### Sites
+- **hanzo.bot** → Landing page (hanzobot/site, Astro, K8s deploy)
+- **app.hanzo.bot** → Bot dashboard
+- **hanzo.id** → IAM/login (Casdoor via CF Pages middleware)
