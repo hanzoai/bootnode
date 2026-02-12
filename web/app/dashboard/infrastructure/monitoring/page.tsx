@@ -70,7 +70,8 @@ export default function MonitoringPage() {
   useEffect(() => {
     async function fetchMonitoring() {
       try {
-        const res = await fetch("http://localhost:8000/v1/monitoring/nodes", {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+        const res = await fetch(`${apiUrl}/v1/monitoring/nodes`, {
           headers: getAuthHeaders(),
         })
         if (res.ok) {

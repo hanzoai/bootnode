@@ -41,9 +41,11 @@ export default function VolumesPage() {
     return {}
   }
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+
   async function fetchVolumes() {
     try {
-      const res = await fetch("http://localhost:8000/v1/infra/volumes", {
+      const res = await fetch(`${apiUrl}/v1/infra/volumes`, {
         headers: getAuthHeaders()
       })
       if (res.ok) {
@@ -67,7 +69,7 @@ export default function VolumesPage() {
     if (!name.trim()) return
     setCreating(true)
     try {
-      const res = await fetch("http://localhost:8000/v1/infra/volumes", {
+      const res = await fetch(`${apiUrl}/v1/infra/volumes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -95,7 +97,7 @@ export default function VolumesPage() {
 
   async function createSnapshot(volumeId: string, volumeName: string) {
     try {
-      const res = await fetch("http://localhost:8000/v1/infra/snapshots", {
+      const res = await fetch(`${apiUrl}/v1/infra/snapshots`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

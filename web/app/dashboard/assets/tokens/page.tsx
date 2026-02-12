@@ -38,7 +38,8 @@ export default function TokensPage() {
     setToken(null)
 
     try {
-      const res = await fetch(`http://localhost:8000/v1/tokens/${chain}/metadata/${contract}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+      const res = await fetch(`${apiUrl}/v1/tokens/${chain}/metadata/${contract}`, {
         headers: getAuthHeaders()
       })
       if (!res.ok) {

@@ -38,7 +38,7 @@ export default function UsagePage() {
           <CardContent>
             <Badge variant="default">Connected</Badge>
             <p className="text-xs text-muted-foreground mt-1">
-              http://localhost:8000
+              {process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}
             </p>
           </CardContent>
         </Card>
