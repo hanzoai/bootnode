@@ -100,7 +100,7 @@ export function UnifiedNavigation() {
       children: [
         { name: "Usage", href: "/dashboard/analytics/usage", icon: Activity },
         { name: "Performance", href: "/dashboard/analytics/performance", icon: Zap },
-        { name: "Billing", href: "/dashboard/analytics/billing", icon: CreditCard },
+        { name: "Billing", href: "/dashboard/organization/billing", icon: CreditCard },
       ]
     },
     {

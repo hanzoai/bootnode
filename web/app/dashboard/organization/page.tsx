@@ -209,8 +209,10 @@ export default function OrganizationPage() {
             <p className="text-sm text-muted-foreground">
               Upgrade to access more features and higher rate limits.
             </p>
-            <Button variant="outline" className="w-full" disabled>
-              Manage Subscription
+            <Button variant="outline" className="w-full" asChild>
+              <Link href="/dashboard/organization/billing">
+                Manage Subscription
+              </Link>
             </Button>
           </CardContent>
         </Card>
