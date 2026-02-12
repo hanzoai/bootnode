@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, PostgresDsn, RedisDsn
+from pydantic import AliasChoices, Field, PostgresDsn, RedisDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -108,10 +108,20 @@ class Settings(BaseSettings):
     webhook_timeout: int = 30
     webhook_max_retries: int = 5
 
-    # Hanzo Commerce (Stripe-based billing)
-    hanzo_commerce_url: str = "https://commerce.hanzo.ai"
-    hanzo_commerce_api_key: str = ""
-    hanzo_commerce_webhook_secret: str = ""
+    # Hanzo Commerce (Square-based billing)
+    # Accepts both COMMERCE_URL and HANZO_COMMERCE_URL env vars for backward compat
+    commerce_url: str = Field(
+        default="https://commerce.hanzo.ai",
+        validation_alias=AliasChoices("commerce_url", "hanzo_commerce_url"),
+    )
+    commerce_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("commerce_api_key", "hanzo_commerce_api_key"),
+    )
+    commerce_webhook_secret: str = Field(
+        default="",
+        validation_alias=AliasChoices("commerce_webhook_secret", "hanzo_commerce_webhook_secret"),
+    )
 
     # ERC-4337 Bundler
     bundler_private_key: str = ""

@@ -1,6 +1,7 @@
 """API dependencies."""
 
 import hashlib
+import logging
 import uuid
 from typing import Annotated
 
@@ -14,6 +15,7 @@ from bootnode.core.cache import redis_client
 from bootnode.db.models import ApiKey, Project, User
 from bootnode.db.session import get_db
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
@@ -63,9 +65,9 @@ async def verify_api_key_or_token(
                     )
                     project = proj_result.scalar_one_or_none()
                     return None, user, project
-        except jwt.InvalidTokenError:
+        except jwt.InvalidTokenError as e:
+            logger.debug("JWT verification failed: %s", e)
             # Not a valid JWT, try as API key
-            pass
 
     # Try API key
     key_hash = hashlib.sha256(
@@ -120,10 +122,14 @@ async def verify_api_key(
 
     # For JWT auth, create a virtual API key with user permissions
     if user:
-        # Return a mock API key object for JWT-authenticated users
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No project found. Create a project first.",
+            )
         virtual_key = ApiKey(
             id=uuid.uuid4(),
-            project_id=project.id if project else uuid.UUID('00000000-0000-0000-0000-000000000001'),
+            project_id=project.id,
             name=f"User: {user.email}",
             key_hash="jwt-auth",
             key_prefix="jwt_",
