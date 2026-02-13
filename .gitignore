@@ -56,3 +56,54 @@ temp/
 
 # Playwright MCP screenshots
 .playwright-mcp/
+
+# Test artifacts (e2e, integration, login flow tests)
+test-*.mjs
+test-*.js
+test_*.mjs
+test_*.py
+*-test-results.json
+*-results.json
+*-ui-inspection.json
+screenshots/
+screenshots-*/
+login-page.html
+console-standalone.tar.gz
+
+# Test reports & summaries (generated, not source)
+*-TEST-REPORT.md
+*-TEST-INDEX.md
+*-TEST-SUMMARY.txt
+*-SUMMARY.md
+*-SUMMARY.txt
+*-REPORT.md
+*-REPORT.txt
+*-QUICK-REFERENCE.txt
+*-VISUAL-SUMMARY.txt
+*-VISUAL-SUMMARY.md
+TEST-*.md
+TEST-*.txt
+TEST_*.md
+TEST_*.txt
+VISUAL-*.md
+FILES-INDEX.txt
+FILES_INDEX.txt
+ISSUES-BLOCKING-DEPLOYMENT.txt
+00-START-HERE.md
+START-HERE-*.md
+README-TEST-*.md
+README_TEST_*.md
+README-HANZO-BOT-*.md
+QUICK-START-*.txt
+LOGIN-FLOW-*.md
+LOGIN_FLOW_*.md
+LOGIN_FLOW_*.txt
+CONSOLE_LOGIN_*.md
+HANZO-*.md
+HANZO-*.txt
+
+# Subprojects (separate repos)
+/universe/
+
+# Docker artifacts
+*.tar.gz
