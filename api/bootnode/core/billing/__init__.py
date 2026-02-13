@@ -57,6 +57,10 @@ from bootnode.core.billing.unified import (
     UnifiedUser,
     get_unified_billing_client,
 )
+from bootnode.core.billing.cloud_billing import (
+    CloudBillingService,
+    cloud_billing_service,
+)
 
 __all__ = [
     # Compute units
@@ -104,4 +108,7 @@ __all__ = [
     "UnifiedBillingClient",
     "UnifiedUser",
     "get_unified_billing_client",
+    # Cloud compute billing
+    "CloudBillingService",
+    "cloud_billing_service",
 ]

@@ -600,3 +600,114 @@ async def sync_iam_to_commerce(
     unified = get_unified_billing_client()
     result = await unified.sync_iam_to_commerce(user)
     return {"synced": True, "result": result}
+
+
+# =============================================================================
+# Cloud Compute Billing (called by agents control-plane)
+# =============================================================================
+
+from bootnode.core.billing.cloud_billing import (
+    CloudAuthResponse,
+    CloudBillingService,
+    CloudQuotaResponse,
+    CloudUsageReport,
+    cloud_billing_service,
+)
+from bootnode.core.billing.tiers import (
+    CLOUD_COMPUTE_LIMITS,
+    CloudComputeLimits,
+    get_cloud_compute_limits,
+)
+
+
+class CloudAuthRequest(BaseModel):
+    """Request from control-plane to authorize provisioning."""
+
+    team_id: str
+    platform: str
+    instance_type: str = ""
+
+
+@router.post("/cloud/authorize", response_model=CloudAuthResponse)
+async def authorize_cloud_provisioning(
+    request: CloudAuthRequest,
+    db: DbDep,
+) -> CloudAuthResponse:
+    """Authorize cloud instance provisioning for a team.
+
+    Called by the agents control-plane before creating an instance.
+    Checks tier limits, quotas, and budget.
+    """
+    return await cloud_billing_service.authorize_provisioning(
+        team_id=request.team_id,
+        platform=request.platform,
+        instance_type=request.instance_type,
+        db=db,
+    )
+
+
+@router.get("/cloud/quota", response_model=CloudQuotaResponse)
+async def get_cloud_quota(
+    team_id: str,
+    db: DbDep,
+) -> CloudQuotaResponse:
+    """Get cloud compute quota and usage for a team.
+
+    Returns tier limits and current usage counts.
+    """
+    return await cloud_billing_service.get_team_quota(
+        team_id=team_id,
+        db=db,
+    )
+
+
+@router.post("/cloud/usage")
+async def report_cloud_usage(
+    report: CloudUsageReport,
+    db: DbDep,
+) -> dict:
+    """Report cloud compute usage from the control-plane.
+
+    Called periodically by the monitor for each running instance.
+    Records compute hours and cost for billing.
+    """
+    return await cloud_billing_service.report_usage(
+        report=report,
+        db=db,
+    )
+
+
+class CloudTierLimitsResponse(BaseModel):
+    """Cloud compute limits for a tier."""
+
+    tier: str
+    max_linux_instances: int
+    max_windows_instances: int
+    max_macos_instances: int
+    max_compute_hours_monthly: int
+    monthly_budget_cents: int
+    linux_hourly_cents: int
+    windows_hourly_cents: int
+    macos_hourly_cents: int
+
+
+@router.get("/cloud/tiers", response_model=list[CloudTierLimitsResponse])
+async def get_cloud_tiers() -> list[CloudTierLimitsResponse]:
+    """Get cloud compute limits for all pricing tiers.
+
+    Shows what cloud resources each tier provides.
+    """
+    return [
+        CloudTierLimitsResponse(
+            tier=tier.value,
+            max_linux_instances=limits.max_linux_instances,
+            max_windows_instances=limits.max_windows_instances,
+            max_macos_instances=limits.max_macos_instances,
+            max_compute_hours_monthly=limits.max_compute_hours_monthly,
+            monthly_budget_cents=limits.monthly_budget_cents,
+            linux_hourly_cents=limits.linux_hourly_cents,
+            windows_hourly_cents=limits.windows_hourly_cents,
+            macos_hourly_cents=limits.macos_hourly_cents,
+        )
+        for tier, limits in CLOUD_COMPUTE_LIMITS.items()
+    ]
