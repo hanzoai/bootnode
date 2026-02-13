@@ -1,7 +1,5 @@
 # Production Docker Compose - Real Infrastructure
-# Usage: docker-compose -f docker-compose.prod.yml up -d
-
-version: '3.8'
+# Usage: docker compose -f docker-compose.prod.yml up -d
 
 services:
   # PostgreSQL Database - Production Ready

@@ -84,6 +84,21 @@ spec:
                   name: hanzo-kms-secrets
                   key: client-secret
                   optional: true
+            # Hanzo Commerce (Billing)
+            - name: HANZO_COMMERCE_URL
+              value: "https://commerce.hanzo.ai"
+            - name: HANZO_COMMERCE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bootnode-secrets
+                  key: commerce-api-key
+                  optional: true
+            - name: HANZO_COMMERCE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bootnode-secrets
+                  key: commerce-webhook-secret
+                  optional: true
             # Hanzo IAM Configuration
             - name: HANZO_IAM_URL
               value: "https://hanzo.id"
