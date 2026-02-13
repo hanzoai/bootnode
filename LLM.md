@@ -1211,3 +1211,38 @@ Never set `issuer` on a `type: "oauth"` NextAuth provider pointing at Casdoor. T
 - **hanzo.bot** → Landing page (hanzobot/site, Astro, K8s deploy)
 - **app.hanzo.bot** → Bot dashboard
 - **hanzo.id** → IAM/login (Casdoor via CF Pages middleware)
+
+## Hanzo Gateway Routes (2026-02-12)
+
+### Gateway Technology
+- **Engine**: KrakenD v3 (Go-based API gateway)
+- **Config**: `~/work/hanzo/gateway/configs/hanzo/gateway.json`
+- **Domain**: `api.hanzo.ai`
+- **K8s**: 2 replicas, ghcr.io/hanzoai/gateway:hanzo-latest
+
+### Configured Routes
+| Prefix | Backend | Service |
+|--------|---------|---------|
+| `/v1/chat/completions` | cloud-api.hanzo.svc:8000 | LLM Inference |
+| `/v1/models` | inference.do-ai.run | Model listing |
+| `/v1/embeddings` | inference.do-ai.run | Embeddings |
+| `/v1/images/*` | inference.do-ai.run | Image generation |
+| `/v1/audio/*` | inference.do-ai.run | Audio TTS/STT |
+| `/cloud/{path}` | cloud-api.hanzo.svc:8000 | Cloud API |
+| `/commerce/{path}` | commerce.hanzo.svc:8001 | Commerce/Billing |
+| `/auth/{path}` | iam.hanzo.svc:8000 | IAM/Auth |
+| `/analytics/{path}` | analytics.hanzo.svc:80 | Analytics |
+| `/bot/{path}` | bot-gateway.hanzo.svc:80 | Bot/Operative |
+| `/operative/{path}` | operative.hanzo.svc:80 | Operative |
+| `/kms/{path}` | kms.hanzo.svc:8080 | Key Management |
+| `/agents/{path}` | agents.hanzo.svc:8000 | Agent Framework |
+| `/console/{path}` | console.hanzo.svc:3000 | Console |
+| `/web3/{path}` | bootnode-api.bootnode.svc:80 | Web3/Blockchain |
+
+### Console Billing — Provider-Agnostic (2026-02-12)
+- All Stripe SDK references purged from console codebase
+- Billing delegated to Hanzo Commerce service via HTTP API
+- tRPC procedures renamed: `createStripeCheckoutSession` → `createCheckoutSession`, etc.
+- `cloudConfig.stripe.*` DB fields preserved (require migration to rename)
+- All old exports kept as `@deprecated` aliases for backward compatibility
+- Key file: `console/web/src/ee/features/billing/server/billingService.ts`
