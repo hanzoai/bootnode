@@ -50,7 +50,9 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./api
-        run: uv sync --extra dev --no-extra hanzo
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
 
       - name: Run tests
         working-directory: ./api
@@ -125,7 +127,9 @@ jobs:
 
       - name: Install API dependencies
         working-directory: ./api
-        run: uv sync --extra dev --no-extra hanzo
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
 
       - name: Start API server
         working-directory: ./api
