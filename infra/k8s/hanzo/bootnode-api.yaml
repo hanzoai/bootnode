@@ -1,0 +1,133 @@
+# Bootnode API deployment in the hanzo namespace
+# Provides billing, chain management, and RPC proxy for Hanzo agents
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bootnode
+  namespace: hanzo
+  labels:
+    app: bootnode
+    component: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bootnode
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: bootnode
+        component: api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/hanzoai/bootnode:api-latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: APP_ENV
+              value: "production"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bootnode-secrets
+                  key: database-url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bootnode-secrets
+                  key: redis-url
+            # Hanzo KMS Configuration
+            - name: HANZO_KMS_URL
+              value: "https://kms.hanzo.ai"
+            - name: HANZO_KMS_ORG
+              value: "hanzo"
+            - name: HANZO_KMS_PROJECT
+              value: "bootnode"
+            - name: HANZO_KMS_ENV
+              value: "production"
+            - name: HANZO_KMS_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: kms-console-credentials
+                  key: KMS_CLIENT_ID
+                  optional: true
+            - name: HANZO_KMS_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: kms-console-credentials
+                  key: KMS_CLIENT_SECRET
+                  optional: true
+            # Hanzo Commerce (Billing)
+            - name: HANZO_COMMERCE_URL
+              value: "https://commerce.hanzo.ai"
+            - name: HANZO_COMMERCE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bootnode-secrets
+                  key: commerce-api-key
+                  optional: true
+            # Hanzo IAM
+            - name: HANZO_IAM_URL
+              value: "https://hanzo.id"
+            - name: HANZO_IAM_ORG
+              value: "HANZO"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bootnode
+  namespace: hanzo
+  labels:
+    app: bootnode
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: bootnode
