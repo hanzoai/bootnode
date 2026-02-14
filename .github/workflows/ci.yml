@@ -62,7 +62,7 @@ jobs:
           JWT_SECRET: test-secret-key-for-ci
           API_KEY_SALT: test-salt-for-ci
         run: |
-          uv run pytest -v --tb=short || echo "No tests yet"
+          .venv/bin/pytest -v --tb=short || echo "No tests yet"
 
   test-web:
     runs-on: ubuntu-latest
@@ -139,8 +139,8 @@ jobs:
           JWT_SECRET: test-secret-key-for-ci
           API_KEY_SALT: test-salt-for-ci
         run: |
-          uv run python -c "from bootnode.db import init_db; import asyncio; asyncio.run(init_db())"
-          uv run uvicorn bootnode.main:app --host 0.0.0.0 --port 8100 &
+          .venv/bin/python -c "from bootnode.db import init_db; import asyncio; asyncio.run(init_db())"
+          .venv/bin/uvicorn bootnode.main:app --host 0.0.0.0 --port 8100 &
           sleep 10
 
       - name: Run E2E tests
