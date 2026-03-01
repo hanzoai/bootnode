@@ -9,8 +9,6 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: hanzoai/bootnode
-  # Canonical image name (bootnode org)
-  CANONICAL_IMAGE_NAME: bootnode/bootnode
 
 jobs:
   test-api:
@@ -221,8 +219,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:api-latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:api-${{ steps.sha.outputs.short }}
-            ${{ env.REGISTRY }}/${{ env.CANONICAL_IMAGE_NAME }}:api-latest
-            ${{ env.REGISTRY }}/${{ env.CANONICAL_IMAGE_NAME }}:api-${{ steps.sha.outputs.short }}
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
 
