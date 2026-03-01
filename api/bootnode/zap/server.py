@@ -425,6 +425,7 @@ class ZapServer:
         self.port = port
         self._server: asyncio.Server | None = None
         self._running = False
+        self._task: asyncio.Task | None = None
 
     async def _handle_connection(self, stream: capnp.AsyncIoStream) -> None:
         """Handle a new ZAP client connection."""
@@ -436,11 +437,8 @@ class ZapServer:
         finally:
             logger.info("ZAP client disconnected")
 
-    async def start(self) -> None:
-        """Start the ZAP server."""
-        if self._running:
-            return
-
+    async def _serve(self) -> None:
+        """Inner serve loop — all capnp ops must run inside kj_loop context."""
         self._server = await capnp.AsyncIoStream.create_server(
             self._handle_connection,
             self.host,
@@ -448,22 +446,48 @@ class ZapServer:
         )
         self._running = True
         logger.info("ZAP server started", host=self.host, port=self.port, url=f"zap://{self.host}:{self.port}")
+        try:
+            async with self._server:
+                await asyncio.Future()  # run until cancelled
+        finally:
+            self._running = False
+
+    async def start(self) -> None:
+        """Start the ZAP server in a background task inside its own kj_loop."""
+        if self._running:
+            return
+
+        async def _run_with_kj_loop() -> None:
+            async with capnp.kj_loop():
+                await self._serve()
+
+        self._task = asyncio.create_task(_run_with_kj_loop())
+
+        # Wait up to 1 s for the server to signal it is running
+        for _ in range(20):
+            await asyncio.sleep(0.05)
+            if self._running:
+                return
+
+        raise RuntimeError(f"ZAP server failed to start on {self.host}:{self.port}")
 
     async def serve_forever(self) -> None:
-        """Run the server until cancelled."""
-        if not self._server:
-            await self.start()
-
-        async with self._server:
-            await self._server.serve_forever()
+        """Compatibility shim — start (non-blocking) then wait for the task."""
+        await self.start()
+        if self._task:
+            await self._task
 
     async def stop(self) -> None:
         """Stop the ZAP server."""
-        if self._server and self._running:
-            self._server.close()
-            await self._server.wait_closed()
-            self._running = False
-            logger.info("ZAP server stopped")
+        if self._task and not self._task.done():
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+        self._running = False
+        self._task = None
+        logger.info("ZAP server stopped")
 
 
 # Global server instance
@@ -474,10 +498,10 @@ async def start_zap_server(
     host: str | None = None,
     port: int | None = None,
 ) -> ZapServer:
-    """Start the global ZAP server.
+    """Start the global ZAP server inside a background task with its own kj_loop.
 
     Args:
-        host: Bind address (default: 0.0.0.0)
+        host: Bind address (default: 0.0.0.0 or ZAP_HOST env var)
         port: Port number (default: 9999 or ZAP_PORT env var)
 
     Returns:
@@ -492,7 +516,7 @@ async def start_zap_server(
     _port = port or int(os.environ.get("ZAP_PORT", "9999"))
 
     _zap_server = ZapServer(host=_host, port=_port)
-    await _zap_server.start()
+    await _zap_server.start()  # non-blocking — spawns background task
     return _zap_server
 
 
