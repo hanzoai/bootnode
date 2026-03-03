@@ -62,6 +62,7 @@ test-*.mjs
 test-*.js
 test_*.mjs
 test_*.py
+!api/tests/test_*.py
 *-test-results.json
 *-results.json
 *-ui-inspection.json
