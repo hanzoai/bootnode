@@ -1173,7 +1173,7 @@ HANZO_COMMERCE_WEBHOOK_SECRET=...
 - **Provider**: Custom `HanzoIamProvider` in `console/packages/shared/src/server/auth/hanzoIamProvider.ts`
 - **Type**: `oauth` (NOT `oidc` — Casdoor JWT tokens have iss claims that openid-client rejects)
 - **Key settings**: `idToken: false`, `checks: ["state"]`, custom `token.request` function
-- **Token endpoint**: `${serverUrl}/api/login/oauth/access_token`
+- **Token endpoint**: `${serverUrl}/oauth/token`
 - **Userinfo endpoint**: `${serverUrl}/api/userinfo`
 - **Console env**: `IAM_SERVER_URL=https://hanzo.id`, `IAM_CLIENT_ID=hanzo-console-client-id`
 

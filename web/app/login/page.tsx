@@ -39,7 +39,7 @@ function LoginForm() {
       const callbackUrl = `${window.location.origin}/auth/callback`
       const iamUrl = brand.iam.url
       const clientId = brand.iam.clientId
-      const authRedirect = `${iamUrl}/login/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=openid+profile+email&state=${encodeURIComponent(returnUrl)}`
+      const authRedirect = `${iamUrl}/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=openid+profile+email&state=${encodeURIComponent(returnUrl)}`
       window.location.href = authRedirect
     }
   }, [isProduction, authLoading, user, searchParams, brand.iam.url, brand.iam.clientId])

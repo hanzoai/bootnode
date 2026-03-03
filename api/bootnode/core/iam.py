@@ -124,7 +124,7 @@ class IAMClient:
         """
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{self.settings.iam_url}/api/login/oauth/access_token",
+                f"{self.settings.iam_url}/oauth/token",
                 data={
                     "grant_type": "authorization_code",
                     "client_id": client_id or self.settings.iam_client_id,
