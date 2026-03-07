@@ -223,6 +223,77 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # =============================================================================
+  # OPTIONAL: SUBGRAPH (docker compose --profile subgraph up -d)
+  # Graph Node + IPFS + dedicated Postgres for subgraph indexing
+  # =============================================================================
+
+  graph-postgres:
+    image: postgres:16-alpine
+    container_name: bootnode-graph-postgres
+    profiles: ["subgraph"]
+    environment:
+      POSTGRES_USER: graph
+      POSTGRES_PASSWORD: graph-bootnode-2026
+      POSTGRES_DB: graph_node
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    ports:
+      - "15432:5432"
+    volumes:
+      - graph-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U graph"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  graph-ipfs:
+    image: ipfs/kubo:v0.24.0
+    container_name: bootnode-graph-ipfs
+    profiles: ["subgraph"]
+    ports:
+      - "15001:5001"
+      - "18080:8080"
+    volumes:
+      - graph-ipfs:/data/ipfs
+    environment:
+      IPFS_PROFILE: server
+    healthcheck:
+      test: ["CMD-SHELL", "ipfs dag stat /ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  graph-node:
+    image: graphprotocol/graph-node:v0.35.1
+    container_name: bootnode-graph-node
+    profiles: ["subgraph"]
+    environment:
+      postgres_host: graph-postgres
+      postgres_port: 5432
+      postgres_user: graph
+      postgres_pass: graph-bootnode-2026
+      postgres_db: graph_node
+      ipfs: graph-ipfs:5001
+      ethereum: "lux:${LUX_RPC_URL:-http://host.docker.internal:9630/ext/bc/C/rpc}"
+      GRAPH_LOG: info
+      ETHEREUM_REORG_THRESHOLD: 1
+      ETHEREUM_ANCESTOR_COUNT: 1
+      node_id: graph_node
+    ports:
+      - "18000:8000"   # GraphQL queries
+      - "18001:8001"   # GraphQL websocket
+      - "18020:8020"   # Admin (deploy/create subgraphs)
+      - "18030:8030"   # Status
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      graph-postgres:
+        condition: service_healthy
+      graph-ipfs:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres:
   redis:
@@ -230,3 +301,5 @@ volumes:
   qdrant:
   meilisearch:
   grafana:
+  graph-postgres:
+  graph-ipfs:

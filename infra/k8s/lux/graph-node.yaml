@@ -1,0 +1,278 @@
+# Graph Node infrastructure for Lux subgraph indexing
+# Includes: PostgreSQL, IPFS, Graph Node
+# Deploy: kubectl apply -f graph-node.yaml -n lux-explorer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: graph-node-config
+  labels:
+    app: graph-node
+    component: exchange-backend
+data:
+  config.toml: |
+    [store]
+    [store.primary]
+    connection = "postgresql://graph:graph-lux-2026@graph-postgres:5432/graph_node?sslmode=disable"
+    weight = 1
+    pool_size = 10
+
+    [deployment]
+    [[deployment.rule]]
+    shard = "primary"
+    indexers = ["graph_node"]
+
+    [chains]
+    ingestor = "graph_node"
+
+    [chains.lux]
+    shard = "primary"
+    provider = [
+      { label = "lux-mainnet", url = "http://luxd-0.luxd-headless.lux-mainnet.svc:9630/ext/bc/C/rpc", features = ["archive"] }
+    ]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: graph-postgres
+  labels:
+    app: graph-postgres
+    component: exchange-backend
+spec:
+  replicas: 1
+  serviceName: graph-postgres
+  selector:
+    matchLabels:
+      app: graph-postgres
+  template:
+    metadata:
+      labels:
+        app: graph-postgres
+        component: exchange-backend
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_USER
+              value: graph
+            - name: POSTGRES_PASSWORD
+              value: graph-lux-2026
+            - name: POSTGRES_DB
+              value: graph_node
+            - name: POSTGRES_INITDB_ARGS
+              value: "-E UTF8 --locale=C"
+          ports:
+            - containerPort: 5432
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          volumeMounts:
+            - name: graph-postgres-data
+              mountPath: /var/lib/postgresql/data
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "graph"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "graph"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: graph-postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: do-block-storage
+        resources:
+          requests:
+            storage: 50Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: graph-postgres
+  labels:
+    app: graph-postgres
+spec:
+  selector:
+    app: graph-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graph-ipfs
+  labels:
+    app: graph-ipfs
+    component: exchange-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: graph-ipfs
+  template:
+    metadata:
+      labels:
+        app: graph-ipfs
+        component: exchange-backend
+    spec:
+      containers:
+        - name: ipfs
+          image: ipfs/kubo:v0.24.0
+          env:
+            - name: IPFS_PROFILE
+              value: server
+          ports:
+            - containerPort: 5001
+              name: api
+            - containerPort: 8080
+              name: gateway
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          volumeMounts:
+            - name: ipfs-data
+              mountPath: /data/ipfs
+      volumes:
+        - name: ipfs-data
+          persistentVolumeClaim:
+            claimName: graph-ipfs-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: graph-ipfs-data
+  labels:
+    app: graph-ipfs
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: do-block-storage
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: graph-ipfs
+  labels:
+    app: graph-ipfs
+spec:
+  selector:
+    app: graph-ipfs
+  ports:
+    - port: 5001
+      targetPort: 5001
+      name: api
+    - port: 8080
+      targetPort: 8080
+      name: gateway
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: graph-node
+  labels:
+    app: graph-node
+    component: exchange-backend
+spec:
+  replicas: 1
+  serviceName: graph-node
+  selector:
+    matchLabels:
+      app: graph-node
+  template:
+    metadata:
+      labels:
+        app: graph-node
+        component: exchange-backend
+    spec:
+      containers:
+        - name: graph-node
+          image: graphprotocol/graph-node:v0.35.1
+          env:
+            - name: GRAPH_NODE_CONFIG
+              value: /etc/graph-node/config.toml
+            - name: node_id
+              value: graph_node
+            - name: GRAPH_LOG
+              value: info
+            - name: ipfs
+              value: graph-ipfs:5001
+            - name: ETHEREUM_REORG_THRESHOLD
+              value: "1"
+            - name: ETHEREUM_ANCESTOR_COUNT
+              value: "1"
+          ports:
+            - containerPort: 8000
+              name: graphql
+            - containerPort: 8001
+              name: ws
+            - containerPort: 8020
+              name: admin
+            - containerPort: 8030
+              name: status
+            - containerPort: 8040
+              name: metrics
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/graph-node
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8030
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8030
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: graph-node-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: graph-node
+  labels:
+    app: graph-node
+spec:
+  selector:
+    app: graph-node
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: graphql
+    - port: 8001
+      targetPort: 8001
+      name: ws
+    - port: 8020
+      targetPort: 8020
+      name: admin
+    - port: 8030
+      targetPort: 8030
+      name: status
