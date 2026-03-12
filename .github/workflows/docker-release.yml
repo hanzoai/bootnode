@@ -50,7 +50,8 @@ jobs:
       deploy: false  # Custom deploy below
     secrets: inherit
 
-  # Deploy to bootnode-k8s + lux-k8s (separate DOKS clusters, need doctl)
+  # Deploy to bootnode-k8s + lux-k8s (separate DOKS clusters)
+  # Secrets fetched from Hanzo KMS at runtime via Universal Auth
   deploy:
     runs-on: ubuntu-latest
     needs: [api, web]
@@ -62,14 +63,68 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Fetch deploy credentials from Hanzo KMS (only Universal Auth creds in GitHub Secrets)
+      - name: Fetch deploy credentials from KMS
+        id: kms
+        env:
+          KMS_CLIENT_ID: ${{ secrets.KMS_CLIENT_ID }}
+          KMS_CLIENT_SECRET: ${{ secrets.KMS_CLIENT_SECRET }}
+          HANZO_API_KEY: ${{ secrets.HANZO_API_KEY }}
+          KMS_ENDPOINT: ${{ vars.KMS_ENDPOINT || 'https://kms.hanzo.ai' }}
+        run: |
+          # Auth: Universal Auth (preferred) or legacy API key
+          if [ -n "${KMS_CLIENT_ID}" ] && [ -n "${KMS_CLIENT_SECRET}" ]; then
+            echo "Authenticating to KMS via Universal Auth..."
+            HANZO_API_KEY=$(curl -sf "${KMS_ENDPOINT}/api/v1/auth/universal-auth/login" \
+              -H "Content-Type: application/json" \
+              -d "{\"clientId\":\"${KMS_CLIENT_ID}\",\"clientSecret\":\"${KMS_CLIENT_SECRET}\"}" | jq -r '.accessToken')
+          fi
+
+          if [ -z "${HANZO_API_KEY}" ]; then
+            echo "::warning::No KMS credentials — falling back to GitHub Secrets"
+            echo "kms_available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "kms_available=true" >> "$GITHUB_OUTPUT"
+
+          # Fetch deploy secrets from KMS /deploy path
+          response=$(curl -sf "${KMS_ENDPOINT}/api/v3/secrets/raw?workspaceId=${{ vars.KMS_WORKSPACE_ID || 'bootnode' }}&secretPath=/deploy&environment=prod" \
+            -H "Authorization: Bearer ${HANZO_API_KEY}" 2>/dev/null || echo "")
+
+          if [ -z "$response" ]; then
+            echo "::warning::KMS fetch returned empty — falling back to GitHub Secrets"
+            echo "kms_available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Extract deploy credentials and mask them
+          extract_secret() {
+            local key="$1"
+            local val
+            val=$(echo "$response" | jq -r ".secrets[] | select(.secretKey==\"${key}\") | .secretValue // empty")
+            if [ -n "$val" ]; then
+              echo "::add-mask::${val}"
+              echo "${key}=${val}" >> "$GITHUB_OUTPUT"
+            fi
+          }
+
+          extract_secret "DO_API_TOKEN"
+          extract_secret "K8S_CLUSTER_NAME"
+          extract_secret "LUX_K8S_CLUSTER_NAME"
+
+      # Install doctl with token from KMS (fallback to GitHub Secret)
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
         with:
-          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          token: ${{ steps.kms.outputs.DO_API_TOKEN || secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
       # --- bootnode-k8s cluster ---
       - name: Save kubeconfig (bootnode-k8s)
-        run: doctl kubernetes cluster kubeconfig save ${{ secrets.K8S_CLUSTER_NAME }}
+        run: |
+          CLUSTER="${{ steps.kms.outputs.K8S_CLUSTER_NAME || secrets.K8S_CLUSTER_NAME }}"
+          echo "::add-mask::${CLUSTER}"
+          doctl kubernetes cluster kubeconfig save "${CLUSTER}"
 
       - name: Apply manifests (bootnode-k8s)
         run: |
@@ -95,7 +150,6 @@ jobs:
 
       - name: Cleanup legacy deployments (bootnode-k8s)
         run: |
-          # Remove old web3-platform-* resources after new bootnode-* are running
           for old in $(kubectl get deployments -n bootnode -o name | grep 'web3-platform'); do
             echo "Deleting legacy $old"
             kubectl delete $old -n bootnode --ignore-not-found
@@ -109,13 +163,22 @@ jobs:
             kubectl delete $old -n bootnode --ignore-not-found
           done
 
-      # --- lux-k8s cluster (optional — needs LUX_K8S_CLUSTER_NAME secret) ---
+      # --- lux-k8s cluster (optional) ---
       - name: Save kubeconfig (lux-k8s)
-        if: ${{ secrets.LUX_K8S_CLUSTER_NAME != '' }}
-        run: doctl kubernetes cluster kubeconfig save ${{ secrets.LUX_K8S_CLUSTER_NAME }}
+        id: lux_kubeconfig
+        continue-on-error: true
+        run: |
+          CLUSTER="${{ steps.kms.outputs.LUX_K8S_CLUSTER_NAME || secrets.LUX_K8S_CLUSTER_NAME }}"
+          if [ -z "${CLUSTER}" ]; then
+            echo "::warning::LUX_K8S_CLUSTER_NAME not set — skipping operator deploy"
+            exit 0
+          fi
+          echo "::add-mask::${CLUSTER}"
+          doctl kubernetes cluster kubeconfig save "${CLUSTER}"
+          echo "connected=true" >> "$GITHUB_OUTPUT"
 
       - name: Deploy operator to lux-k8s
-        if: ${{ secrets.LUX_K8S_CLUSTER_NAME != '' }}
+        if: steps.lux_kubeconfig.outputs.connected == 'true'
         run: |
           kubectl apply -f infra/k8s/lux/crds.yaml
           kubectl apply -f infra/k8s/lux/rbac.yaml
