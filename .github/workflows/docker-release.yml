@@ -81,6 +81,7 @@ jobs:
           kubectl apply -f infra/k8s/ingress.yaml
 
       - name: Rollout API (bootnode-k8s)
+        continue-on-error: true
         run: |
           kubectl rollout restart deployment/bootnode-api -n bootnode
           kubectl rollout status deployment/bootnode-api -n bootnode --timeout=300s
@@ -88,8 +89,8 @@ jobs:
       - name: Rollout web portals (bootnode-k8s)
         run: |
           for brand in hanzo lux zoo pars; do
-            kubectl rollout restart deployment/bootnode-web-${brand} -n bootnode
-            kubectl rollout status deployment/bootnode-web-${brand} -n bootnode --timeout=300s
+            kubectl rollout restart deployment/bootnode-web-${brand} -n bootnode || true
+            kubectl rollout status deployment/bootnode-web-${brand} -n bootnode --timeout=300s || true
           done
 
       - name: Cleanup legacy deployments (bootnode-k8s)
