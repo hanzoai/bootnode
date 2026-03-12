@@ -8,7 +8,7 @@ on:
 
 jobs:
   test-api:
-    runs-on: ubuntu-latest
+    runs-on: hanzo-build
     services:
       postgres:
         image: postgres:16-alpine
@@ -61,7 +61,7 @@ jobs:
           .venv/bin/pytest -v --tb=short || echo "No tests yet"
 
   test-web:
-    runs-on: ubuntu-latest
+    runs-on: hanzo-build
     steps:
       - uses: actions/checkout@v4
 
@@ -84,7 +84,7 @@ jobs:
         run: pnpm run build
 
   e2e-test:
-    runs-on: ubuntu-latest
+    runs-on: hanzo-build
     needs: [test-api, test-web]
     services:
       postgres:

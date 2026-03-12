@@ -19,7 +19,7 @@ concurrency:
 jobs:
   # Gate: only proceed if CI passed (skip check for tags/manual)
   gate:
-    runs-on: ubuntu-latest
+    runs-on: hanzo-build
     if: >-
       github.event_name != 'workflow_run' ||
       github.event.workflow_run.conclusion == 'success'
@@ -53,7 +53,7 @@ jobs:
   # Deploy to bootnode-k8s + lux-k8s (separate DOKS clusters)
   # Secrets fetched from Hanzo KMS at runtime via Universal Auth
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: hanzo-k8s
     needs: [api, web]
     if: >-
       github.event_name != 'workflow_run' ||
