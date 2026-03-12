@@ -1234,9 +1234,9 @@ Never set `issuer` on a `type: "oauth"` NextAuth provider pointing at Casdoor. T
 | `/analytics/{path}` | analytics.hanzo.svc:80 | Analytics |
 | `/bot/{path}` | bot-gateway.hanzo.svc:80 | Bot/Operative |
 | `/operative/{path}` | operative.hanzo.svc:80 | Operative |
-| `/kms/{path}` | kms.hanzo.svc:8080 | Key Management |
-| `/agents/{path}` | agents.hanzo.svc:8000 | Agent Framework |
-| `/console/{path}` | console.hanzo.svc:3000 | Console |
+| `/kms/{path}` | kms.hanzo.svc:80 | Key Management |
+| `/agents/{path}` | agents.hanzo.svc:8080 | Agent Framework |
+| `/console/{path}` | console.hanzo.svc:80 | Console |
 | `/web3/{path}` | bootnode-api.bootnode.svc:80 | Web3/Blockchain |
 
 ### Console Billing — Provider-Agnostic (2026-02-12)

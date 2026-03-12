@@ -6,11 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: hanzoai/bootnode
-  CANONICAL_IMAGE: bootnode/bootnode
-
 jobs:
   test-api:
     runs-on: ubuntu-latest
@@ -267,8 +262,7 @@ jobs:
         run: |
           kubectl apply -f infra/k8s/namespace.yaml
           kubectl apply -f infra/k8s/api-deployment.yaml
-          kubectl apply -f infra/k8s/hanzo-web3-deployment.yaml
-          kubectl apply -f infra/k8s/bootnode-web-deployment.yaml
+          kubectl apply -f infra/k8s/web-deployments.yaml
           kubectl apply -f infra/k8s/ingress.yaml
 
           # Restart API

@@ -35,6 +35,14 @@ export type BrandConfig = {
     href: string
     external?: boolean
   }[]
+  // Ecosystem apps — retail-facing services linked from dashboard
+  ecosystemApps: {
+    name: string
+    href: string
+    description: string
+    icon: string  // lucide icon name
+    category: "explore" | "defi" | "tools" | "governance"
+  }[]
 }
 
 // Brand presets
@@ -71,6 +79,7 @@ const brands: Record<string, BrandConfig> = {
       { name: "GitHub", href: "https://github.com/bootnode", external: true },
       { name: "Twitter", href: "https://twitter.com/bootnode", external: true },
     ],
+    ecosystemApps: [],
   },
   hanzo: {
     name: "Hanzo Web3",
@@ -81,8 +90,8 @@ const brands: Record<string, BrandConfig> = {
     logoWhite: "/logo/hanzo-logo-white.svg",
     favicon: "/logo/hanzo-icon.svg",
     domain: "web3.hanzo.ai",
-    apiUrl: "https://api.web3.hanzo.ai",
-    wsUrl: "wss://ws.web3.hanzo.ai",
+    apiUrl: "https://api.cloud.hanzo.ai",
+    wsUrl: "wss://ws.cloud.hanzo.ai",
     statusUrl: "https://status.hanzo.ai",
     defaultTheme: "dark",
     colors: {
@@ -107,6 +116,10 @@ const brands: Record<string, BrandConfig> = {
       { name: "Hanzo Chat", href: "https://chat.hanzo.ai", external: true },
       { name: "Hanzo Network", href: "https://hanzo.network", external: true },
       { name: "GitHub", href: "https://github.com/hanzoai", external: true },
+    ],
+    ecosystemApps: [
+      { name: "Hanzo Chat", href: "https://chat.hanzo.ai", description: "AI chat with 100+ models", icon: "MessageSquare", category: "tools" },
+      { name: "Hanzo Console", href: "https://console.hanzo.ai", description: "LLM observability & evaluation", icon: "BarChart3", category: "tools" },
     ],
   },
   lux: {
@@ -133,8 +146,8 @@ const brands: Record<string, BrandConfig> = {
       github: "https://github.com/luxfi",
     },
     iam: {
-      url: "https://iam.lux.network",
-      clientId: "lux-web3",
+      url: "https://lux.id",
+      clientId: "lux-app-client-id",
       domain: "lux.id",
     },
     footerLinks: [
@@ -144,6 +157,19 @@ const brands: Record<string, BrandConfig> = {
       { name: "Lux Wallet", href: "https://wallet.lux.network", external: true },
       { name: "Lux Exchange", href: "https://exchange.lux.network", external: true },
       { name: "GitHub", href: "https://github.com/luxfi", external: true },
+    ],
+    ecosystemApps: [
+      { name: "Explorer", href: "https://explore.lux.network", description: "Block explorer for all Lux chains", icon: "Search", category: "explore" },
+      { name: "Bridge", href: "https://bridge.lux.network", description: "Cross-chain asset bridge", icon: "ArrowLeftRight", category: "defi" },
+      { name: "Exchange", href: "https://exchange.lux.network", description: "Decentralized exchange (DEX)", icon: "ArrowUpDown", category: "defi" },
+      { name: "Markets", href: "https://markets.lux.network", description: "NFT marketplace", icon: "ShoppingBag", category: "defi" },
+      { name: "Wallet", href: "https://wallet.lux.network", description: "Multi-chain wallet", icon: "Wallet", category: "tools" },
+      { name: "Safe", href: "https://safe.lux.network", description: "Multisig wallet (FROST)", icon: "Shield", category: "tools" },
+      { name: "Faucet", href: "https://faucet.lux.network", description: "Testnet token faucet", icon: "Droplets", category: "tools" },
+      { name: "Staking", href: "https://stake.lux.network", description: "Validator staking", icon: "Coins", category: "defi" },
+      { name: "Governance", href: "https://vote.lux.network", description: "On-chain governance", icon: "Vote", category: "governance" },
+      { name: "Status", href: "https://status.lux.network", description: "Network status & uptime", icon: "Activity", category: "explore" },
+      { name: "Lux Build", href: "https://lux.build", description: "Developer portal & docs", icon: "Code", category: "tools" },
     ],
   },
   pars: {
@@ -170,8 +196,8 @@ const brands: Record<string, BrandConfig> = {
       github: "https://github.com/pars-network",
     },
     iam: {
-      url: "https://iam.lux.network",
-      clientId: "lux-web3",
+      url: "https://pars.id",
+      clientId: "pars-app-client-id",
       domain: "pars.id",
     },
     footerLinks: [
@@ -180,6 +206,12 @@ const brands: Record<string, BrandConfig> = {
       { name: "Pars Wallet", href: "https://wallet.pars.network", external: true },
       { name: "SessionVM", href: "https://session.pars.network", external: true },
       { name: "GitHub", href: "https://github.com/pars-network", external: true },
+    ],
+    ecosystemApps: [
+      { name: "Explorer", href: "https://explore.pars.network", description: "Pars block explorer", icon: "Search", category: "explore" },
+      { name: "Wallet", href: "https://wallet.pars.network", description: "Pars wallet", icon: "Wallet", category: "tools" },
+      { name: "SessionVM", href: "https://session.pars.network", description: "Private messaging VM", icon: "MessageCircle", category: "tools" },
+      { name: "Faucet", href: "https://faucet.pars.network", description: "Testnet tokens", icon: "Droplets", category: "tools" },
     ],
   },
   zoo: {
@@ -206,9 +238,9 @@ const brands: Record<string, BrandConfig> = {
       github: "https://github.com/zoolabs",
     },
     iam: {
-      url: "https://iam.lux.network",
-      clientId: "lux-web3",
-      domain: "zoo.id",
+      url: "https://id.zoo.network",
+      clientId: "zoo-app-client-id",
+      domain: "id.zoo.network",
     },
     footerLinks: [
       { name: "Zoo Labs", href: "https://zoo.ngo", external: true },
@@ -216,6 +248,12 @@ const brands: Record<string, BrandConfig> = {
       { name: "Zoo Network", href: "https://zoo.network", external: true },
       { name: "Zen LM", href: "https://zenlm.ai", external: true },
       { name: "GitHub", href: "https://github.com/zooai", external: true },
+    ],
+    ecosystemApps: [
+      { name: "Zoo AI Chat", href: "https://ai.zoo.ngo", description: "Decentralized AI chat", icon: "Bot", category: "tools" },
+      { name: "Zen LM", href: "https://zenlm.ai", description: "Open frontier models", icon: "Brain", category: "tools" },
+      { name: "Explorer", href: "https://explore.zoo.ngo", description: "Zoo chain explorer", icon: "Search", category: "explore" },
+      { name: "Faucet", href: "https://faucet.zoo.ngo", description: "Testnet tokens", icon: "Droplets", category: "tools" },
     ],
   },
 }
@@ -227,7 +265,7 @@ function getBrandKey(): string {
     const hostname = window.location.hostname
     if (hostname.includes("lux.cloud") || hostname.includes("lux.network")) return "lux"
     if (hostname.includes("pars.network") || hostname.includes("pars.id")) return "pars"
-    if (hostname.includes("zoo.ngo") || hostname.includes("zoo.id")) return "zoo"
+    if (hostname.includes("zoo.ngo") || hostname.includes("zoo.network")) return "zoo"
     if (hostname.includes("hanzo.ai")) return "hanzo"
     if (hostname.includes("bootno.de") || hostname.includes("bootnode.io")) return "bootnode"
   }

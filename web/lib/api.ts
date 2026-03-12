@@ -185,6 +185,60 @@ export const team = {
     api(`/team/${memberId}`, { method: "DELETE" }),
 }
 
+// Infrastructure
+export const infra = {
+  listServices: () => api("/infra/services"),
+  serviceStatus: (service: string) => api(`/infra/services/${service}`),
+}
+
+// Observability
+export const o11y = {
+  health: () => api("/o11y/health"),
+  metrics: () => api("/o11y/metrics"),
+  serviceMetrics: (service: string) => api(`/o11y/metrics/${service}`),
+  alerts: (severity?: string) => api(`/o11y/alerts${severity ? `?severity=${severity}` : ""}`),
+  createAlertRule: (data: { service: string; metric: string; threshold: number; severity?: string }) =>
+    api("/o11y/alerts", { method: "POST", body: JSON.stringify(data) }),
+  serviceMap: () => api("/o11y/service-map"),
+  logs: (params?: { q?: string; service?: string; level?: string; limit?: number }) => {
+    const qs = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)]))}` : ""
+    return api(`/o11y/logs${qs}`)
+  },
+  events: (params?: { type?: string; service?: string; limit?: number }) => {
+    const qs = params ? `?${new URLSearchParams(Object.entries(params).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)]))}` : ""
+    return api(`/o11y/events${qs}`)
+  },
+}
+
+// AI Chat
+export const chat = {
+  completions: (messages: { role: string; content: string }[], stream = true, model?: string) =>
+    fetch(`${getApiConfig().API_URL}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {}),
+        ...(getApiKey() ? { "X-API-Key": getApiKey()! } : {}),
+      },
+      body: JSON.stringify({ messages, stream, model }),
+    }),
+  models: () => api("/chat/models"),
+}
+
+// Fleet Management
+export const fleets = {
+  list: (chain?: string) => api(`/fleets${chain ? `?chain=${chain}` : ""}`),
+  get: (chain: string, clusterId: string, network: string) =>
+    api(`/fleets/${chain}/${clusterId}/${network}`),
+  scale: (chain: string, clusterId: string, network: string, replicas: number) =>
+    api(`/fleets/${chain}/${clusterId}/${network}/scale`, {
+      method: "POST",
+      body: JSON.stringify({ replicas }),
+    }),
+  restart: (chain: string, clusterId: string, network: string) =>
+    api(`/fleets/${chain}/${clusterId}/${network}/restart`, { method: "POST" }),
+}
+
 // Types
 export interface TeamMember {
   id: string

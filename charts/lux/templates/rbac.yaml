@@ -1,0 +1,26 @@
+{{- $network := index .Values.networks .Values.network }}
+{{- $namespace := $network.namespace }}
+# Role to allow luxd pods to read their own LoadBalancer service for public IP discovery
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: luxd-service-reader
+  namespace: {{ $namespace }}
+rules:
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: luxd-service-reader
+  namespace: {{ $namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: luxd-service-reader
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: {{ $namespace }}

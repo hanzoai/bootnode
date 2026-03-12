@@ -100,7 +100,7 @@ async def get_zap_server_info(_api_key: ApiKeyDep) -> dict[str, Any]:
                 "prompts": False,
                 "logging": True,
             },
-            tools_count=11,
+            tools_count=18,
             resources_count=3,
         ).model_dump(),
         "protocol": {
@@ -120,13 +120,14 @@ async def list_zap_tools(_api_key: ApiKeyDep) -> dict[str, Any]:
     Each tool has a name, description, and JSON Schema for arguments.
     """
     tools = [
+        # === RPC & Blockchain ===
         {
             "name": "rpc_call",
             "description": "Execute JSON-RPC on any supported blockchain",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "chain": {"type": "string", "description": "Chain name (ethereum, polygon, etc.)"},
+                    "chain": {"type": "string", "description": "Chain name (ethereum, polygon, lux, etc.)"},
                     "network": {"type": "string", "default": "mainnet"},
                     "method": {"type": "string", "description": "RPC method"},
                     "params": {"type": "array", "default": []},
@@ -184,12 +185,148 @@ async def list_zap_tools(_api_key: ApiKeyDep) -> dict[str, Any]:
                 "required": ["chain"],
             },
         },
+        # === Fleet Management (AI agent infrastructure control) ===
+        {
+            "name": "fleet_list",
+            "description": "List all validator fleets across clusters and networks",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "chain": {"type": "string", "description": "Filter by chain (lux, hanzo, etc.)"},
+                    "cluster_id": {"type": "string", "description": "Filter by cluster"},
+                },
+            },
+        },
+        {
+            "name": "fleet_get",
+            "description": "Get full status of a fleet including nodes and endpoints",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "chain": {"type": "string"},
+                    "cluster_id": {"type": "string"},
+                    "network": {"type": "string"},
+                },
+                "required": ["chain", "cluster_id", "network"],
+            },
+        },
+        {
+            "name": "fleet_scale",
+            "description": "Scale a fleet to target replica count",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "chain": {"type": "string"},
+                    "cluster_id": {"type": "string"},
+                    "network": {"type": "string"},
+                    "replicas": {"type": "integer", "minimum": 1, "maximum": 100},
+                },
+                "required": ["chain", "cluster_id", "network", "replicas"],
+            },
+        },
+        {
+            "name": "fleet_restart",
+            "description": "Rolling restart all pods in a fleet",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "chain": {"type": "string"},
+                    "cluster_id": {"type": "string"},
+                    "network": {"type": "string"},
+                },
+                "required": ["chain", "cluster_id", "network"],
+            },
+        },
+        # === Service Management ===
+        {
+            "name": "service_list",
+            "description": "List all deployed infrastructure services and their status",
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "service_deploy",
+            "description": "Deploy or update an infrastructure service (explorer, bridge, safe, etc.)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "service": {"type": "string", "description": "Service type (explorer, bridge, safe, faucet, etc.)"},
+                    "image": {"type": "string", "description": "Container image"},
+                    "replicas": {"type": "integer", "default": 1},
+                    "env": {"type": "object", "description": "Environment variables"},
+                },
+                "required": ["service", "image"],
+            },
+        },
+        {
+            "name": "service_scale",
+            "description": "Scale a service to target replica count",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "service": {"type": "string"},
+                    "replicas": {"type": "integer", "minimum": 0, "maximum": 100},
+                },
+                "required": ["service", "replicas"],
+            },
+        },
+        {
+            "name": "service_logs",
+            "description": "Get logs from a deployed service",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "service": {"type": "string"},
+                    "tail": {"type": "integer", "default": 100},
+                },
+                "required": ["service"],
+            },
+        },
+        # === Observability ===
+        {
+            "name": "o11y_health",
+            "description": "Get aggregate health across all services and fleets",
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "o11y_metrics",
+            "description": "Get platform metrics (requests/sec, latency, error rate)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "service": {"type": "string", "description": "Optional: filter to specific service"},
+                },
+            },
+        },
+        {
+            "name": "o11y_logs",
+            "description": "Search aggregated logs across all services via Loki",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search text"},
+                    "service": {"type": "string", "description": "Filter by service"},
+                    "level": {"type": "string", "enum": ["debug", "info", "warn", "error"]},
+                    "limit": {"type": "integer", "default": 100},
+                },
+            },
+        },
+        {
+            "name": "o11y_alerts",
+            "description": "Get active alerts and recent incidents",
+            "inputSchema": {"type": "object", "properties": {}},
+        },
     ]
 
     return {
         "tools": tools,
         "total": len(tools),
-        "note": "Connect via ZAP for full tool list with all parameters",
+        "categories": {
+            "rpc": ["rpc_call", "get_token_balances", "get_nfts_owned", "create_smart_wallet", "estimate_gas"],
+            "fleet": ["fleet_list", "fleet_get", "fleet_scale", "fleet_restart"],
+            "service": ["service_list", "service_deploy", "service_scale", "service_logs"],
+            "o11y": ["o11y_health", "o11y_metrics", "o11y_logs", "o11y_alerts"],
+        },
+        "note": "Connect via ZAP for binary RPC: zap://api.bootno.de:9999",
     }
 
 

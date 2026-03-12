@@ -275,7 +275,7 @@ services:
       postgres_pass: graph-bootnode-2026
       postgres_db: graph_node
       ipfs: graph-ipfs:5001
-      ethereum: "lux:${LUX_RPC_URL:-http://host.docker.internal:9630/ext/bc/C/rpc}"
+      ethereum: "lux:${LUX_RPC_URL:-http://host.docker.internal:9630/ext/bc/C/rpc} zoo:${ZOO_RPC_URL:-http://host.docker.internal:9630/ext/bc/zoo/rpc} pars:${PARS_RPC_URL:-http://host.docker.internal:9630/ext/bc/pars/rpc} hanzo:${HANZO_RPC_URL:-http://host.docker.internal:9630/ext/bc/hanzo/rpc} spc:${SPC_RPC_URL:-http://host.docker.internal:9630/ext/bc/spc/rpc}"
       GRAPH_LOG: info
       ETHEREUM_REORG_THRESHOLD: 1
       ETHEREUM_ANCESTOR_COUNT: 1

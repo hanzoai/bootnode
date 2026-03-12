@@ -1,0 +1,48 @@
+# Testnet configuration overrides
+network: testnet
+
+replicas: 5
+
+bootstrap:
+  useHostnames: true
+  nodeIDs:
+    - NodeID-Mf3JfSY91oDwfBqf7rCLmhg4NDtDghw1f
+    - NodeID-2TwSZ2oyeBK2mv7JiseEQ8m74rotDj4QR
+    - NodeID-Ld9VFBQ9zGbd79z2vzaAqkQ3jHuqbtRpo
+    - NodeID-8mY2fhUehN27v3LCU84BnnKEoeRfd2weC
+    - NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu
+  # C-Chain RLP import (219 blocks from canonical genesis)
+  rlpImport:
+    enabled: true
+    baseUrl: "https://raw.githubusercontent.com/luxfi/state/main/rlp/lux-testnet"
+    rlpFilename: "lux-testnet-96368.rlp"
+    multiPart: false
+    parts: []
+    minHeight: 200
+    timeout: 600
+
+initMode:
+  clearData: false
+
+# Testnet requires sybil protection
+consensus:
+  sybilProtectionEnabled: true
+
+# Testnet tracks all chains automatically
+chainTracking:
+  trackAllChains: true
+  trackedChains: []
+  aliases:
+    - zoo
+    - hanzo
+    - spc
+    - pars
+
+# EVM chain configs for C + deployed subnet chains (by blockchain ID)
+chainConfigs:
+  enabled: true
+  blockchainIDs:
+    - "2HejgoXvUEDYUYoJLUhQYYadtDSE5qpBLTJKxzYr1AcvkRT9fE"  # Zoo
+    - "2gUYrds3GEira6a1KxzPxSHJx2rY48hLEtpcWXm7JFJ81WiKJg"  # Hanzo (36964)
+    - "eoMnXFewgFM22caQi35FU4i4hyFdLrPFwNVT54yFzc2WPGnNY"   # SPC
+    - "o5eQ7MhcM1K4CqFXRdseNQm9xnyVLKFxsdjHAq8v7UJbXU9rw"  # Pars (494950)

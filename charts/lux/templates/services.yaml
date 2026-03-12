@@ -1,0 +1,85 @@
+{{- $network := index .Values.networks .Values.network }}
+{{- $namespace := $network.namespace }}
+{{- $stakingPort := $network.stakingPort }}
+{{- $httpPort := $network.httpPort }}
+# Headless service for StatefulSet DNS resolution
+apiVersion: v1
+kind: Service
+metadata:
+  name: luxd-headless
+  namespace: {{ $namespace }}
+  labels:
+    app: luxd
+    lux-network: {{ .Values.network }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: luxd
+    lux-network: {{ .Values.network }}
+  ports:
+  - name: http
+    port: {{ $httpPort }}
+  - name: staking
+    port: {{ $stakingPort }}
+{{- if .Values.nodeServices.enabled }}
+---
+# Main LoadBalancer service (round-robin across all pods)
+apiVersion: v1
+kind: Service
+metadata:
+  name: luxd
+  namespace: {{ $namespace }}
+  labels:
+    app: luxd
+    lux-network: {{ .Values.network }}
+  annotations:
+    service.beta.kubernetes.io/do-loadbalancer-name: "k8s-luxd-{{ .Values.network }}"
+    {{- with .Values.nodeServices.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ .Values.nodeServices.type }}
+  selector:
+    app: luxd
+    lux-network: {{ .Values.network }}
+  ports:
+  - name: http
+    port: {{ $httpPort }}
+    targetPort: {{ $httpPort }}
+  - name: staking
+    port: {{ $stakingPort }}
+    targetPort: {{ $stakingPort }}
+# Individual LoadBalancer services per pod for stable external IPs
+# CRITICAL for P2P: each validator needs its own public IP
+{{- range $i := until (int .Values.replicas) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: luxd-{{ $i }}
+  namespace: {{ $namespace }}
+  labels:
+    app: luxd
+    lux-network: {{ $.Values.network }}
+    pod-index: "{{ $i }}"
+  annotations:
+    service.beta.kubernetes.io/do-loadbalancer-name: "k8s-luxd-{{ $.Values.network }}-{{ $i }}"
+    {{- with $.Values.nodeServices.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ $.Values.nodeServices.type }}
+  selector:
+    app: luxd
+    lux-network: {{ $.Values.network }}
+    statefulset.kubernetes.io/pod-name: luxd-{{ $i }}
+  ports:
+  - name: http
+    port: {{ $httpPort }}
+    targetPort: {{ $httpPort }}
+  - name: staking
+    port: {{ $stakingPort }}
+    targetPort: {{ $stakingPort }}
+{{- end }}
+{{- end }}

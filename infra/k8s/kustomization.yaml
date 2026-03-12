@@ -6,9 +6,14 @@ namespace: bootnode
 resources:
   - namespace.yaml
   - secrets.yaml
+  - external-secrets.yaml
   - api-deployment.yaml
-  - web-deployment.yaml
+  - web-deployments.yaml
+  - docs-deployment.yaml
+  - indexer-deployment.yaml
   - ingress.yaml
+  - monitoring.yaml
+  - network-policies.yaml
 
 commonLabels:
   app.kubernetes.io/part-of: bootnode

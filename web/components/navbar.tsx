@@ -16,8 +16,10 @@ import {
 import {
   Database,
   Globe,
+  KeyRound,
   Layers,
   Menu,
+  Search,
   Wallet,
   X,
 } from "lucide-react"
@@ -42,6 +44,18 @@ const products = [
     href: "/products/wallets",
     description: "Smart wallets with account abstraction",
     icon: Wallet,
+  },
+  {
+    title: "Explorer",
+    href: "/products/explorer",
+    description: "Deploy your own block explorer",
+    icon: Search,
+  },
+  {
+    title: "MPC",
+    href: "/products/mpc",
+    description: "Threshold MPC key management",
+    icon: KeyRound,
   },
   {
     title: "Rollups",
@@ -78,7 +92,7 @@ export function Navbar() {
             <NavigationMenuItem>
               <NavigationMenuTrigger>Products</NavigationMenuTrigger>
               <NavigationMenuContent>
-                <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2">
+                <ul className="grid w-[400px] gap-3 p-4 md:w-[600px] md:grid-cols-3">
                   {products.map((product) => (
                     <li key={product.title}>
                       <NavigationMenuLink asChild>

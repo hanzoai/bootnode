@@ -1,0 +1,31 @@
+# DigitalOcean App Platform spec for the bootnode-operator.
+#
+# This builds and deploys the operator container to the lux-k8s cluster.
+# The operator watches Cluster CRDs and reconciles blockchain node clusters.
+#
+# Deployment:
+#   doctl apps create --spec infra/do-app-platform/bootnode-operator.yaml
+#   doctl apps update <app-id> --spec infra/do-app-platform/bootnode-operator.yaml
+
+name: bootnode-operator
+region: sfo
+
+services:
+  - name: operator
+    github:
+      repo: hanzoai/bootnode
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: operator/Dockerfile
+    source_dir: operator
+    instance_count: 1
+    instance_size_slug: professional-xs
+    http_port: 8081
+    health_check:
+      http_path: /healthz
+      initial_delay_seconds: 10
+      period_seconds: 30
+    envs:
+      - key: RUST_LOG
+        value: info,bootnode_operator=debug
+    run_command: /usr/local/bin/bootnode-operator --namespace "" --log-level info

@@ -20,6 +20,17 @@ from bootnode.zap import start_zap_server, stop_zap_server
 # Load secrets from Hanzo KMS before settings
 inject_secrets()
 
+
+# ---------------------------------------------------------------------------
+# Hanzo O11y — Traces + Metrics + Logs
+# All telemetry → OTEL Collector → Datastore + Loki
+# Prometheus /metrics served natively for ServiceMonitor scraping
+# ---------------------------------------------------------------------------
+from bootnode.core.o11y import setup_otel, setup_otel_logging
+
+# Wire OTEL log export early (before any logging)
+setup_otel_logging()
+
 logger = structlog.get_logger()
 settings = get_settings()
 
@@ -32,7 +43,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     await init_db()
     await redis_client.initialize()
 
-    # Initialize DataStore (ClickHouse) - optional, won't fail startup
+    # Initialize DataStore - optional, won't fail startup
     try:
         await datastore_client.initialize()
         logger.info("DataStore connected")
@@ -83,14 +94,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Hanzo O11y — /metrics + OTEL traces/metrics/logs
+setup_otel(app)
+
+# Validate production secrets (fail-fast)
+settings.validate_production()
+
 # CORS - all cloud domains for white-label multi-network support
 production_origins = [
     "https://bootno.de",
+    "https://lux.build",
     "https://cloud.lux.network",
     "https://cloud.pars.network",
     "https://cloud.zoo.network",
-    "https://cloud.hanzo.network",
     "https://cloud.hanzo.ai",
+    "https://docs.bootno.de",
 ]
 # Add frontend_url if set
 if settings.frontend_url:

@@ -1,0 +1,186 @@
+# Bootnode Network Policies — Defense in Depth
+#
+# Architecture:
+#   Internet → Ingress → bootnode-api / bootnode-web-* / bootnode-docs
+#   bootnode-api → postgres, redis, datastore (internal only)
+#   bootnode-api → otel-collector.hanzo.svc (cross-namespace, traces/metrics)
+#   bootnode-api → api.hanzo.ai (external, LLM gateway for AI chat)
+
+---
+# -- Default Deny All Ingress --------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: bootnode
+  labels:
+    app.kubernetes.io/part-of: bootnode
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+
+---
+# -- Allow Ingress from Nginx Ingress Controller --------------------------------
+# Web portals and docs accept traffic from ingress controller
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-controller
+  namespace: bootnode
+  labels:
+    app.kubernetes.io/part-of: bootnode
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - bootnode-api
+          - bootnode-web-hanzo
+          - bootnode-web-lux
+          - bootnode-web-zoo
+          - bootnode-web-pars
+          - bootnode-docs
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+
+---
+# -- Intra-namespace: pods can talk to each other --------------------------------
+# API → postgres, redis, datastore within bootnode namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-intra-namespace
+  namespace: bootnode
+  labels:
+    app.kubernetes.io/part-of: bootnode
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+
+---
+# -- Database Access: restrict to API only ----------------------------------------
+# Only bootnode-api and bootnode-indexer can reach postgres
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: restrict-postgres-access
+  namespace: bootnode
+  labels:
+    app.kubernetes.io/part-of: bootnode
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: bootnode-postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - bootnode-api
+                  - bootnode-indexer
+      ports:
+        - protocol: TCP
+          port: 5432
+
+---
+# -- Redis Access: restrict to API only -------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: restrict-redis-access
+  namespace: bootnode
+  labels:
+    app.kubernetes.io/part-of: bootnode
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: bootnode-redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - bootnode-api
+                  - bootnode-indexer
+      ports:
+        - protocol: TCP
+          port: 6379
+
+---
+# -- Allow Prometheus/OTEL scraping from hanzo namespace --------------------------
+# Hanzo OTEL collector and Prometheus need to scrape bootnode-api /metrics
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-scrape
+  namespace: bootnode
+  labels:
+    app.kubernetes.io/part-of: bootnode
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: bootnode-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: hanzo
+          podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - otel-collector
+                  - prometheus
+                  - grafana
+      ports:
+        - protocol: TCP
+          port: 8000
+
+---
+# -- Egress: API can reach hanzo namespace (OTEL collector, IAM, LLM) ------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-egress-hanzo
+  namespace: bootnode
+  labels:
+    app.kubernetes.io/part-of: bootnode
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: bootnode-api
+  policyTypes:
+    - Egress
+  egress:
+    # Allow all egress from API (needs external RPCs, LLM gateway, etc.)
+    - {}

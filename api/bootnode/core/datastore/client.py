@@ -1,4 +1,4 @@
-"""DataStore (ClickHouse) async client."""
+"""DataStore async client — OLAP analytics backend."""
 
 from typing import Any
 from urllib.parse import urlparse
@@ -14,7 +14,7 @@ settings = get_settings()
 
 
 class DataStoreClient:
-    """Async ClickHouse client for high-performance analytics queries."""
+    """Async DataStore client for high-performance analytics queries."""
 
     def __init__(self) -> None:
         self._client: ChClient | None = None
@@ -24,7 +24,7 @@ class DataStoreClient:
         self._initialized = False
 
     async def initialize(self) -> None:
-        """Initialize the ClickHouse connection."""
+        """Initialize the DataStore connection."""
         if self._initialized:
             return
 

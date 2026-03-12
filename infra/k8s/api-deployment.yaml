@@ -29,7 +29,7 @@ spec:
       serviceAccountName: bootnode-api
       containers:
         - name: api
-          image: ghcr.io/hanzoai/bootnode:api-latest
+          image: ghcr.io/hanzoai/bootnode:latest
           imagePullPolicy: Always
           ports:
             - name: http
@@ -42,27 +42,27 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: bootnode-secrets
-                  key: database-url
+                  key: DATABASE_URL
             - name: REDIS_URL
               valueFrom:
                 secretKeyRef:
                   name: bootnode-secrets
-                  key: redis-url
+                  key: REDIS_URL
             - name: DATASTORE_URL
               valueFrom:
                 secretKeyRef:
                   name: bootnode-secrets
-                  key: datastore-url
+                  key: DATASTORE_URL
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: bootnode-secrets
-                  key: jwt-secret
+                  key: JWT_SECRET
             - name: API_KEY_SALT
               valueFrom:
                 secretKeyRef:
                   name: bootnode-secrets
-                  key: api-key-salt
+                  key: API_KEY_SALT
             # Hanzo KMS Configuration
             - name: HANZO_KMS_URL
               value: "https://kms.hanzo.ai"
@@ -75,14 +75,14 @@ spec:
             - name: HANZO_KMS_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: hanzo-kms-secrets
-                  key: client-id
+                  name: universal-auth-credentials
+                  key: clientId
                   optional: true
             - name: HANZO_KMS_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: hanzo-kms-secrets
-                  key: client-secret
+                  name: universal-auth-credentials
+                  key: clientSecret
                   optional: true
             # Hanzo Commerce (Billing)
             - name: HANZO_COMMERCE_URL
@@ -91,13 +91,29 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: bootnode-secrets
-                  key: commerce-api-key
+                  key: COMMERCE_API_KEY
                   optional: true
             - name: HANZO_COMMERCE_WEBHOOK_SECRET
               valueFrom:
                 secretKeyRef:
                   name: bootnode-secrets
-                  key: commerce-webhook-secret
+                  key: COMMERCE_WEBHOOK_SECRET
+                  optional: true
+            # Hanzo O11y (OTEL → shared Datastore)
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.hanzo.svc:4317"
+            - name: OTEL_SERVICE_NAME
+              value: "bootnode-api"
+            - name: OTEL_SERVICE_VERSION
+              value: "2.0.0"
+            - name: OTEL_ENABLED
+              value: "true"
+            # AI Chat (Hanzo AI Gateway at api.hanzo.ai)
+            - name: HANZO_AI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bootnode-secrets
+                  key: HANZO_AI_API_KEY
                   optional: true
             # Hanzo IAM Configuration
             - name: HANZO_IAM_URL
@@ -135,6 +151,8 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+      imagePullSecrets:
+        - name: ghcr-secret
       volumes:
         - name: tmp
           emptyDir: {}

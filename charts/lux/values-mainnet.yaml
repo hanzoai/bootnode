@@ -1,0 +1,52 @@
+# Mainnet configuration overrides
+network: mainnet
+
+replicas: 5
+
+bootstrap:
+  useHostnames: true
+  nodeIDs:
+    - NodeID-Mf3JfSY91oDwfBqf7rCLmhg4NDtDghw1f
+    - NodeID-2TwSZ2oyeBK2mv7JiseEQ8m74rotDj4QR
+    - NodeID-Ld9VFBQ9zGbd79z2vzaAqkQ3jHuqbtRpo
+    - NodeID-8mY2fhUehN27v3LCU84BnnKEoeRfd2weC
+    - NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu
+  # C-Chain RLP import (1,082,780 blocks from canonical genesis)
+  rlpImport:
+    enabled: true
+    baseUrl: "https://raw.githubusercontent.com/luxfi/state/main/rlp/lux-mainnet"
+    rlpFilename: "lux-mainnet-96369.rlp"
+    multiPart: true
+    parts: ["aa","ab","ac","ad","ae","af","ag","ah","ai","aj","ak","al","am"]
+    minHeight: 1000000
+    timeout: 7200
+
+initMode:
+  clearData: false
+
+# Mainnet requires sybil protection
+consensus:
+  sybilProtectionEnabled: true
+
+# Mainnet tracks specific subnet chains (by subnet ID)
+chainTracking:
+  trackAllChains: false
+  trackedChains:
+    - "Zb8CqjdWK87rrQNfyUXF8vyPTWpkfk6Fi11QAgdVx8Wqn92gN"    # Zoo subnet
+    - "2Sp2D6AkezVy51Md1QN9pgSUrBFJokFftgu4CodoZ4G5vV8AA5"   # Hanzo subnet
+    - "z3vzrV3VzGAzcRJRQD5h9A8SqTAHdUroUFMmCFjmm7E1eCmcm"    # SPC subnet
+    - "qKtBVWY7RAEEWZDVHJTa2stao5tN4d57hkb7758E9H7tMNmec"    # Pars subnet (494949)
+  aliases:
+    - zoo
+    - hanzo
+    - spc
+    - pars
+
+# EVM chain configs for C + deployed subnet chains (by blockchain ID)
+chainConfigs:
+  enabled: true
+  blockchainIDs:
+    - "pcMkknsTyA5JdYDzvgRQkq4WmPdz99TcAWeezAQYh7Tjh64HN"  # Zoo
+    - "2ktB8JknYFzLTNWPFk5QHstmmbSx97vAFv5zJUD4BtgU59tZD5"  # Hanzo
+    - "2jomRDDNY9c4eLS47m7gNUMnf6fNYdmCBHSGX6JHTqzP1W1FgE"  # SPC
+    - "2ZPGRSPzvUfr8nSYigsUj1FYC68U6rcKoePhMSkHSYS4V9UmnS"  # Pars (494949)

@@ -8,13 +8,47 @@ from pydantic import BaseModel
 
 
 class ServiceType(str, Enum):
-    """Bootnode service types."""
+    """Bootnode service types.
 
+    Core platform services plus all blockchain infrastructure services
+    deployable per-network per-org.
+    """
+
+    # Core platform
     API = "api"
     WEB = "web"
     INDEXER = "indexer"
     WEBHOOK_WORKER = "webhook-worker"
     BUNDLER = "bundler"
+
+    # Block explorer
+    EXPLORER = "explorer"
+
+    # The Graph
+    GRAPH_NODE = "graph-node"
+    GRAPH_POSTGRES = "graph-postgres"
+    GRAPH_IPFS = "graph-ipfs"
+
+    # DeFi / exchange
+    BRIDGE = "bridge"
+    EXCHANGE = "exchange"
+    MARKET = "market"
+    STAKING = "staking"
+
+    # Security / multisig
+    MPC = "mpc"
+    MPC_POSTGRES = "mpc-postgres"
+    SAFE = "safe"
+    SAFE_TRANSACTION = "safe-transaction"
+    SAFE_CONFIG = "safe-config"
+
+    # Networking
+    GATEWAY = "gateway"
+    RPC_PROXY = "rpc-proxy"
+    VALIDATOR = "validator"
+
+    # Tools
+    FAUCET = "faucet"
 
 
 class ServiceStatus(BaseModel):

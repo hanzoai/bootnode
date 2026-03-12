@@ -1,0 +1,370 @@
+# Bootnode web portals — one universal image, brand selected at runtime
+# Each org gets its own deployment with brand-specific env vars
+---
+# ========== Hanzo Portal (web3.hanzo.ai) ==========
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bootnode-web-hanzo
+  namespace: bootnode
+  labels:
+    app: bootnode-web-hanzo
+    component: frontend
+    brand: hanzo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bootnode-web-hanzo
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: bootnode-web-hanzo
+        component: frontend
+        brand: hanzo
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/hanzoai/bootnode-web:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: NEXT_PUBLIC_BRAND
+              value: "hanzo"
+            - name: NEXT_PUBLIC_API_URL
+              value: "https://api.cloud.hanzo.ai"
+            - name: NEXT_PUBLIC_WS_URL
+              value: "wss://ws.cloud.hanzo.ai"
+            - name: NEXT_PUBLIC_IAM_URL
+              value: "https://hanzo.id"
+            - name: NEXT_PUBLIC_IAM_CLIENT_ID
+              value: "hanzo-web3"
+            - name: NEXT_PUBLIC_IAM_DOMAIN
+              value: "hanzo.id"
+            - name: NEXT_PUBLIC_AUTH_MODE
+              value: "iam"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+      imagePullSecrets:
+        - name: ghcr-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bootnode-web-hanzo
+  namespace: bootnode
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3001
+      targetPort: http
+  selector:
+    app: bootnode-web-hanzo
+---
+# ========== Lux Portal (web3.lux.network) ==========
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bootnode-web-lux
+  namespace: bootnode
+  labels:
+    app: bootnode-web-lux
+    component: frontend
+    brand: lux
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bootnode-web-lux
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: bootnode-web-lux
+        component: frontend
+        brand: lux
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/hanzoai/bootnode-web:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: NEXT_PUBLIC_BRAND
+              value: "lux"
+            - name: NEXT_PUBLIC_API_URL
+              value: "https://api.web3.lux.network"
+            - name: NEXT_PUBLIC_WS_URL
+              value: "wss://ws.web3.lux.network"
+            - name: NEXT_PUBLIC_IAM_URL
+              value: "https://lux.id"
+            - name: NEXT_PUBLIC_IAM_CLIENT_ID
+              value: "lux-web3"
+            - name: NEXT_PUBLIC_IAM_DOMAIN
+              value: "lux.id"
+            - name: NEXT_PUBLIC_AUTH_MODE
+              value: "iam"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+      imagePullSecrets:
+        - name: ghcr-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bootnode-web-lux
+  namespace: bootnode
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3001
+      targetPort: http
+  selector:
+    app: bootnode-web-lux
+---
+# ========== Zoo Portal (web3.zoo.ngo) ==========
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bootnode-web-zoo
+  namespace: bootnode
+  labels:
+    app: bootnode-web-zoo
+    component: frontend
+    brand: zoo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bootnode-web-zoo
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: bootnode-web-zoo
+        component: frontend
+        brand: zoo
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/hanzoai/bootnode-web:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: NEXT_PUBLIC_BRAND
+              value: "zoo"
+            - name: NEXT_PUBLIC_API_URL
+              value: "https://api.cloud.zoo.network"
+            - name: NEXT_PUBLIC_WS_URL
+              value: "wss://ws.cloud.zoo.network"
+            - name: NEXT_PUBLIC_IAM_URL
+              value: "https://id.zoo.network"
+            - name: NEXT_PUBLIC_IAM_CLIENT_ID
+              value: "zoo-web3"
+            - name: NEXT_PUBLIC_IAM_DOMAIN
+              value: "id.zoo.network"
+            - name: NEXT_PUBLIC_AUTH_MODE
+              value: "iam"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+      imagePullSecrets:
+        - name: ghcr-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bootnode-web-zoo
+  namespace: bootnode
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3001
+      targetPort: http
+  selector:
+    app: bootnode-web-zoo
+---
+# ========== Pars Portal (web3.pars.id) ==========
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bootnode-web-pars
+  namespace: bootnode
+  labels:
+    app: bootnode-web-pars
+    component: frontend
+    brand: pars
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bootnode-web-pars
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: bootnode-web-pars
+        component: frontend
+        brand: pars
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/hanzoai/bootnode-web:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: NEXT_PUBLIC_BRAND
+              value: "pars"
+            - name: NEXT_PUBLIC_API_URL
+              value: "https://api.cloud.pars.network"
+            - name: NEXT_PUBLIC_WS_URL
+              value: "wss://ws.cloud.pars.network"
+            - name: NEXT_PUBLIC_IAM_URL
+              value: "https://pars.id"
+            - name: NEXT_PUBLIC_IAM_CLIENT_ID
+              value: "pars-web3"
+            - name: NEXT_PUBLIC_IAM_DOMAIN
+              value: "pars.id"
+            - name: NEXT_PUBLIC_AUTH_MODE
+              value: "iam"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+      imagePullSecrets:
+        - name: ghcr-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bootnode-web-pars
+  namespace: bootnode
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3001
+      targetPort: http
+  selector:
+    app: bootnode-web-pars

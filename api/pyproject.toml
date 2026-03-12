@@ -39,7 +39,7 @@ dependencies = [
     "structlog>=24.4.0",
     "tenacity>=9.0.0",
     "cachetools>=5.5.0",
-    # DataStore (ClickHouse)
+    # DataStore
     "aiochclient>=2.6.0",
     # Message Queue (Redis-based, @hanzo/mq compatible)
     "arq>=0.26.0",
@@ -49,6 +49,14 @@ dependencies = [
     "docker>=7.0.0",
     # ZAP Protocol (native Cap'n Proto RPC)
     "pycapnp>=2.0.0",
+    # Hanzo O11y — full OTEL stack (traces + metrics + logs → Datastore)
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-sdk>=1.27.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.27.0",
+    "opentelemetry-instrumentation-fastapi>=0.48b0",
+    "opentelemetry-instrumentation-httpx>=0.48b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.48b0",
+    "opentelemetry-instrumentation-redis>=0.48b0",
 ]
 
 

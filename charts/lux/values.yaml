@@ -1,0 +1,187 @@
+# Lux blockchain node Helm chart values
+# Base config (used as defaults, override per network with values-{network}.yaml)
+
+network: devnet
+
+# Network-specific settings
+# networkID MUST match genesis.json networkID (node validates at startup)
+# Well-known IDs: mainnet=1, testnet=2, devnet=3
+# C-chain IDs (96369/96368/96370) are chain IDs, NOT network IDs
+networks:
+  mainnet:
+    networkID: 1
+    chainID: 96369
+    cChainID: FvnNxsL1LGeNbp5HugkjK9VszFKWVN18b2DSoj1ZRbyBev2hM
+    httpPort: 9630
+    stakingPort: 9631
+    namespace: lux-mainnet
+  testnet:
+    networkID: 2
+    chainID: 96368
+    cChainID: 2oworJV5yJCV69AcBrizs7Xy4iZHs6Ao9pQP9PR7mNX3qoxaZn
+    httpPort: 9640
+    stakingPort: 9641
+    namespace: lux-testnet
+  devnet:
+    networkID: 3
+    chainID: 96370
+    cChainID: FvnNxsL1LGeNbp5HugkjK9VszFKWVN18b2DSoj1ZRbyBev2hM
+    httpPort: 9650
+    stakingPort: 9651
+    namespace: lux-devnet
+
+# 5 replicas for production consensus
+replicas: 5
+
+image:
+  repository: registry.digitalocean.com/hanzo/bootnode
+  tag: luxd-v1.23.14
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: registry-hanzo
+
+# Bootstrap configuration
+bootstrap:
+  nodeIDs:
+    - NodeID-8mCxB5QtMDX1S84zaXF7i8vGcP4FJxACH
+    - NodeID-Pss5uJBPNECYvPZVuas9sE8ZwSpwP43Tr
+    - NodeID-F1snfkawAgudnrp4wZWRK6syZwokPRfb2
+    - NodeID-H7KVD16b5b8uzWy9uUdrjzsBLEbbTaUKc
+    - NodeID-aVsqjzUqNNTNDxbRwkCUrwnVgEe5x8Qc
+  useHostnames: true
+  externalIPs: []
+  # RLP block import configuration
+  rlpImport:
+    enabled: false
+    baseUrl: ""
+    rlpFilename: ""
+    multiPart: false
+    parts: []
+    minHeight: 1
+    timeout: 7200
+
+# Consensus settings (5-node network)
+consensus:
+  sampleSize: 5
+  quorumSize: 4
+  sybilProtectionEnabled: false
+  requireValidatorToConnect: false
+  allowPrivateIPs: true
+
+# Chain tracking
+chainTracking:
+  trackAllChains: true
+  trackedChains: []
+  aliases:
+    - zoo
+    - hanzo
+    - spc
+    - pars
+
+# Deployed chain configs (blockchain IDs for EVM chain config directories)
+# These get JSON config written to /data/configs/chains/{blockchainID}/config.json
+chainConfigs:
+  enabled: false
+  blockchainIDs: []
+  # EVM chain config applied to C-chain and all subnet chains
+  evmConfig: '{"admin-api-enabled":true,"eth-apis":["eth","eth-filter","net","web3","internal-eth","internal-blockchain","internal-transaction","internal-tx-pool","internal-account","internal-personal","debug","internal-debug","admin"],"rpc-gas-cap":50000000,"rpc-tx-fee-cap":100,"pruning-enabled":false,"allow-unfinalized-queries":true,"allow-unprotected-txs":true,"log-level":"info","state-sync-enabled":false,"allow-missing-tries":true}'
+
+# Init container mode
+initMode:
+  # Set to true to clear chain data on pod restart (for re-genesis)
+  clearData: false
+
+# Startup gating: wait for peers before starting luxd
+# Prevents "bootstrapped at height 0 with 0 peers" issue
+startupGate:
+  enabled: true
+  minPeers: 2
+  timeoutSeconds: 300
+  checkIntervalSeconds: 5
+
+# Seed/snapshot restore configuration
+seedRestore:
+  enabled: false
+  # sourceType: None | ObjectStore | PVCClone | VolumeSnapshot
+  sourceType: None
+  objectStoreUrl: ""
+  markerPath: "/data/.seeded"
+
+# Upgrade strategy
+upgradeStrategy:
+  # OnDelete (safest) or RollingUpdate
+  type: OnDelete
+  maxUnavailable: 1
+
+# Health policy
+healthPolicy:
+  requireInboundValidators: false
+  minInbound: 1
+  gracePeriodSeconds: 300
+  maxHeightSkew: 10
+
+# Staking keys
+staking:
+  secretName: luxd-staking
+
+# Resources
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: "500m"
+  limits:
+    memory: "4Gi"
+    cpu: "2"
+
+# Storage
+storage:
+  size: 100Gi
+  storageClass: do-block-storage
+
+# Node exposure
+nodeServices:
+  enabled: true
+  type: LoadBalancer
+  annotations: {}
+
+# Logging
+logLevel: info
+
+# Database
+dbType: badgerdb
+
+# API settings
+api:
+  adminEnabled: true
+  metricsEnabled: true
+  indexEnabled: true
+  httpAllowedHosts: "*"
+
+# Upgrade config override (only for custom network IDs, NOT well-known 1/2/3)
+# Well-known network IDs use built-in upgrade schedules
+upgradeConfig:
+  enabled: false
+  content: |
+    {
+      "apricotPhase1Time": "2020-12-05T05:00:00Z",
+      "apricotPhase2Time": "2020-12-05T05:00:00Z",
+      "apricotPhase3Time": "2020-12-05T05:00:00Z",
+      "apricotPhase4Time": "2020-12-05T05:00:00Z",
+      "apricotPhase4MinPChainHeight": 0,
+      "apricotPhase5Time": "2020-12-05T05:00:00Z",
+      "apricotPhasePre6Time": "2020-12-05T05:00:00Z",
+      "apricotPhase6Time": "2020-12-05T05:00:00Z",
+      "apricotPhasePost6Time": "2020-12-05T05:00:00Z",
+      "banffTime": "2020-12-05T05:00:00Z",
+      "cortinaTime": "2020-12-05T05:00:00Z",
+      "cortinaXChainStopVertexID": "11111111111111111111111111111111LpoYY",
+      "durangoTime": "2020-12-05T05:00:00Z",
+      "etnaTime": "2020-12-05T05:00:00Z",
+      "fortunaTime": "2020-12-05T05:00:00Z",
+      "graniteTime": "9999-12-01T00:00:00Z"
+    }
+
+# Genesis
+genesis:
+  configMapName: luxd-genesis

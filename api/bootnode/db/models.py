@@ -50,7 +50,11 @@ class User(Base):
 
 
 class Project(Base):
-    """Project/Organization model."""
+    """Project/Organization model.
+
+    Each project belongs to an IAM org (hanzo, lux, zoo, pars, etc.)
+    and has access to specific clusters.
+    """
 
     __tablename__ = "projects"
 
@@ -59,8 +63,10 @@ class Project(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    org_id: Mapped[str] = mapped_column(String(100), nullable=False, default="hanzo")
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     settings: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    allowed_chains: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -72,6 +78,7 @@ class Project(Base):
     api_keys: Mapped[list["ApiKey"]] = relationship(back_populates="project")
     webhooks: Mapped[list["Webhook"]] = relationship(back_populates="project")
     subscription: Mapped["Subscription | None"] = relationship(back_populates="project", uselist=False)
+    clusters: Mapped[list["OrgCluster"]] = relationship(back_populates="project")
 
 
 class ApiKey(Base):
@@ -302,3 +309,38 @@ class Subscription(Base):
 
     # Relationships
     project: Mapped["Project"] = relationship(back_populates="subscription")
+
+
+class OrgCluster(Base):
+    """Org-to-cluster mapping. Controls which clusters each org/project can manage.
+
+    When a project has OrgCluster entries, fleet operations are scoped to those
+    clusters only. When no entries exist, the project has no cluster access
+    (except admin projects which bypass this check).
+    """
+
+    __tablename__ = "org_clusters"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    cluster_id: Mapped[str] = mapped_column(
+        String(255), nullable=False,
+    )
+    cluster_name: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    provider: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="digitalocean",
+    )
+    region: Mapped[str] = mapped_column(String(50), nullable=False, default="sfo3")
+    allowed_chains: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    allowed_namespaces: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    # Relationships
+    project: Mapped["Project"] = relationship(back_populates="clusters")

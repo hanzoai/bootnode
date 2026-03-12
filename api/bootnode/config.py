@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     btc_rpc_user: str = "bootnode"
     btc_rpc_password: str = ""
 
-    # DataStore (ClickHouse)
+    # DataStore (OLAP analytics backend)
     datastore_url: str = "clickhouse://bootnode:bootnode@localhost:8123/bootnode"
     datastore_pool_size: int = 10
 
@@ -132,6 +132,11 @@ class Settings(BaseSettings):
     zap_host: str = "0.0.0.0"
     zap_port: int = 9999
 
+    # Hanzo O11y (OTEL)
+    otel_enabled: bool = True
+    otel_endpoint: str = "http://otel-collector.hanzo.svc:4317"
+    otel_service_name: str = "bootnode-api"
+
     # Deployment Target
     deploy_target: Literal["docker", "process", "kubernetes"] = "docker"
     deploy_compose_file: str = "infra/compose.yml"
@@ -145,6 +150,22 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
+
+    def validate_production(self) -> None:
+        """Fail fast if production is missing critical secrets."""
+        if not self.is_production:
+            return
+        insecure = []
+        if self.jwt_secret == "change-me-in-production":
+            insecure.append("JWT_SECRET")
+        if self.api_key_salt == "change-me-in-production":
+            insecure.append("API_KEY_SALT")
+        if self.bundler_private_key == "":
+            insecure.append("BUNDLER_PRIVATE_KEY")
+        if insecure:
+            raise RuntimeError(
+                f"Production mode requires these secrets: {', '.join(insecure)}"
+            )
 
 
 @lru_cache

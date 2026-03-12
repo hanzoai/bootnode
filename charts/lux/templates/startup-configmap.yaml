@@ -1,0 +1,290 @@
+{{- $network := index .Values.networks .Values.network }}
+{{- $namespace := $network.namespace }}
+{{- $stakingPort := $network.stakingPort }}
+{{- $httpPort := $network.httpPort }}
+{{- $replicas := int .Values.replicas }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: luxd-startup
+  namespace: {{ $namespace }}
+data:
+  startup.sh: |
+    #!/bin/sh
+    set -e
+
+    POD_INDEX=${HOSTNAME##*-}
+    echo "=== luxd startup for $HOSTNAME ({{ .Values.network }}, network-id={{ $network.networkID }}) ==="
+
+    # Staking keys are set up by init container
+    echo "Staking keys already in place for node $POD_INDEX"
+
+    # Build bootstrap node list excluding self
+    # Uses --bootstrap-nodes (endpoint-only, NodeID discovered from TLS cert)
+    {{- if .Values.bootstrap.useHostnames }}
+    # Using internal K8s DNS for bootstrap (recommended)
+    DNS_PREFIX="luxd"
+    DNS_SUFFIX="luxd-headless.{{ $namespace }}.svc.cluster.local"
+    BOOTSTRAP_NODES=""
+    {{- range $i := until $replicas }}
+    if [ "$POD_INDEX" != "{{ $i }}" ]; then
+      CUR_HOST="${DNS_PREFIX}-{{ $i }}.${DNS_SUFFIX}:{{ $stakingPort }}"
+      if [ -n "$BOOTSTRAP_NODES" ]; then
+        BOOTSTRAP_NODES="${BOOTSTRAP_NODES},${CUR_HOST}"
+      else
+        BOOTSTRAP_NODES="${CUR_HOST}"
+      fi
+    fi
+    {{- end }}
+    {{- else }}
+    # Using external IPs for bootstrap
+    BOOTSTRAP_NODES=""
+    {{- range $i := until $replicas }}
+    {{- $externalIP := "" }}
+    {{- if and $.Values.bootstrap.externalIPs (gt (len $.Values.bootstrap.externalIPs) $i) }}
+    {{- $externalIP = index $.Values.bootstrap.externalIPs $i }}
+    {{- end }}
+    if [ "$POD_INDEX" != "{{ $i }}" ] && [ -n "{{ $externalIP }}" ]; then
+      if [ -n "$BOOTSTRAP_NODES" ]; then
+        BOOTSTRAP_NODES="${BOOTSTRAP_NODES},{{ $externalIP }}:{{ $stakingPort }}"
+      else
+        BOOTSTRAP_NODES="{{ $externalIP }}:{{ $stakingPort }}"
+      fi
+    fi
+    {{- end }}
+    {{- end }}
+
+    # Get public IP
+    # Priority: 1) static externalIPs from values, 2) K8s LB service discovery, 3) pod IP fallback
+    PUBLIC_IP=""
+    {{- if .Values.bootstrap.externalIPs }}
+    case "$POD_INDEX" in
+    {{- range $i := until $replicas }}
+    {{- if and $.Values.bootstrap.externalIPs (gt (len $.Values.bootstrap.externalIPs) $i) }}
+      {{ $i }}) PUBLIC_IP="{{ index $.Values.bootstrap.externalIPs $i }}" ;;
+    {{- end }}
+    {{- end }}
+    esac
+    {{- end }}
+
+    # If no static IP, discover from per-pod LoadBalancer service via K8s API
+    if [ -z "$PUBLIC_IP" ]; then
+      SA_TOKEN_FILE="/var/run/secrets/kubernetes.io/serviceaccount/token"
+      CA_CERT="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+      K8S_API="https://kubernetes.default.svc"
+      SVC_NAME="luxd-${POD_INDEX}"
+      NAMESPACE="{{ $namespace }}"
+
+      if [ -f "$SA_TOKEN_FILE" ]; then
+        TOKEN=$(cat "$SA_TOKEN_FILE")
+        echo "[PUBLIC-IP] Discovering external IP from service ${SVC_NAME} in ${NAMESPACE}..."
+        ATTEMPT=0
+        MAX_ATTEMPTS=12
+        while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
+          SVC_JSON=$(curl -sf -m 5 \
+            -H "Authorization: Bearer ${TOKEN}" \
+            --cacert "$CA_CERT" \
+            "${K8S_API}/api/v1/namespaces/${NAMESPACE}/services/${SVC_NAME}" 2>/dev/null || true)
+
+          if [ -n "$SVC_JSON" ]; then
+            # Extract loadBalancer ingress IP (no jq in alpine, JSON spans multiple lines)
+            # Look for "ip" field that appears after "ingress" in the status block
+            LB_IP=$(echo "$SVC_JSON" | tr -d ' \n' | sed -n 's/.*"loadBalancer":{"ingress":\[{"ip":"\([^"]*\)".*/\1/p')
+            if [ -n "$LB_IP" ]; then
+              PUBLIC_IP="$LB_IP"
+              echo "[PUBLIC-IP] Discovered external IP: $PUBLIC_IP (attempt $((ATTEMPT+1)))"
+              break
+            fi
+          fi
+
+          ATTEMPT=$((ATTEMPT + 1))
+          if [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
+            echo "[PUBLIC-IP] LB IP not yet assigned, retrying in 5s... (attempt $((ATTEMPT))/${MAX_ATTEMPTS})"
+            sleep 5
+          fi
+        done
+      else
+        echo "[PUBLIC-IP] No service account token found, skipping LB discovery"
+      fi
+    fi
+
+    # Final fallback to pod IP
+    if [ -z "$PUBLIC_IP" ]; then
+      PUBLIC_IP=$(hostname -i)
+      echo "[PUBLIC-IP] WARNING: Using pod IP $PUBLIC_IP (no external IP found)"
+    fi
+
+    {{- if .Values.chainConfigs.enabled }}
+    # Write EVM chain configs for C-chain and deployed subnet chains
+    CHAIN_CFG='{{ .Values.chainConfigs.evmConfig }}'
+    for chain in C{{ range .Values.chainConfigs.blockchainIDs }} {{ . }}{{ end }}; do
+      mkdir -p /data/configs/chains/$chain
+      echo "$CHAIN_CFG" > /data/configs/chains/$chain/config.json
+    done
+    echo "Chain configs written for C{{ range .Values.chainConfigs.blockchainIDs }} + {{ . | trunc 8 }}{{ end }}"
+    {{- end }}
+
+    echo "  public-ip: $PUBLIC_IP"
+    echo "  bootstrap-nodes: $BOOTSTRAP_NODES"
+
+    # Build luxd arguments
+    ARGS="--network-id={{ $network.networkID }}"
+    ARGS="$ARGS --http-host=0.0.0.0"
+    ARGS="$ARGS --http-port={{ $httpPort }}"
+    ARGS="$ARGS --http-allowed-hosts={{ .Values.api.httpAllowedHosts }}"
+    ARGS="$ARGS --staking-port={{ $stakingPort }}"
+    ARGS="$ARGS --data-dir=/data"
+    ARGS="$ARGS --genesis-file=/genesis/genesis.json"
+    ARGS="$ARGS --db-type={{ .Values.dbType }}"
+    {{- if .Values.chainConfigs.enabled }}
+    ARGS="$ARGS --chain-config-dir=/data/configs/chains"
+    {{- end }}
+    ARGS="$ARGS --index-enabled={{ .Values.api.indexEnabled }}"
+    ARGS="$ARGS --api-admin-enabled={{ .Values.api.adminEnabled }}"
+    ARGS="$ARGS --api-metrics-enabled={{ .Values.api.metricsEnabled }}"
+    ARGS="$ARGS --api-keystore-enabled=true"
+    ARGS="$ARGS --log-level={{ .Values.logLevel }}"
+    ARGS="$ARGS --plugin-dir=/data/plugins"
+    ARGS="$ARGS --staking-tls-cert-file=/data/staking/staker.crt"
+    ARGS="$ARGS --staking-tls-key-file=/data/staking/staker.key"
+
+    # Signer key is optional
+    if [ -f "/data/staking/signer.key" ]; then
+      ARGS="$ARGS --staking-signer-key-file=/data/staking/signer.key"
+    fi
+
+    ARGS="$ARGS --consensus-sample-size={{ .Values.consensus.sampleSize }}"
+    ARGS="$ARGS --consensus-quorum-size={{ .Values.consensus.quorumSize }}"
+    ARGS="$ARGS --sybil-protection-enabled={{ .Values.consensus.sybilProtectionEnabled }}"
+    ARGS="$ARGS --network-require-validator-to-connect={{ .Values.consensus.requireValidatorToConnect }}"
+    ARGS="$ARGS --network-allow-private-ips={{ .Values.consensus.allowPrivateIPs }}"
+
+    if [ -n "$PUBLIC_IP" ]; then
+      ARGS="$ARGS --public-ip=$PUBLIC_IP"
+    fi
+
+    if [ -n "$BOOTSTRAP_NODES" ]; then
+      ARGS="$ARGS --bootstrap-nodes=$BOOTSTRAP_NODES"
+    fi
+
+    # Chain tracking
+    {{- if .Values.chainTracking.trackAllChains }}
+    ARGS="$ARGS --track-all-chains"
+    {{- else if .Values.chainTracking.trackedChains }}
+    ARGS="$ARGS --track-chains={{ join "," .Values.chainTracking.trackedChains }}"
+    {{- end }}
+
+    # Upgrade config override (all upgrades from genesis for custom networks)
+    {{- if .Values.upgradeConfig.enabled }}
+    UPGRADE_JSON='{{ .Values.upgradeConfig.content | replace "\n" "" | trim }}'
+    UPGRADE_B64=$(echo "$UPGRADE_JSON" | base64 | tr -d '\n')
+    ARGS="$ARGS --upgrade-file-content=$UPGRADE_B64"
+    {{- end }}
+
+    {{- if .Values.bootstrap.rlpImport.enabled }}
+    # Clear C-chain data on restart to avoid trie corruption
+    # (path database prunes genesis state, causing "triedb parent layer missing" on restart)
+    # P-chain and X-chain data are preserved (subnet deployments, etc.)
+    C_CHAIN_DIR="/data/chainData/network-{{ $network.networkID }}/{{ $network.cChainID }}"
+    IMPORT_MARKER="/data/.bootstrap-{{ .Values.network }}-import.done"
+    if [ -d "$C_CHAIN_DIR" ]; then
+      echo "[STARTUP] Clearing C-chain data to prevent trie corruption on restart..."
+      rm -rf "$C_CHAIN_DIR"
+      rm -f "$IMPORT_MARKER"
+      echo "[STARTUP] C-chain data cleared, will re-import RLP"
+    fi
+    {{- end }}
+
+    # Start luxd in background (allows post-start bootstrap logic)
+    /luxd/build/luxd $ARGS &
+    LUXD_PID=$!
+
+    # Disable set -e for bootstrap section
+    set +e
+
+    # Wait for node to be healthy
+    echo "[BOOTSTRAP] Waiting for node health..."
+    i=0
+    while [ "$i" -lt 180 ]; do
+      if curl -sf -m 2 http://127.0.0.1:{{ $httpPort }}/ext/health >/dev/null 2>&1; then
+        echo "[BOOTSTRAP] Node healthy after ${i}s"
+        break
+      fi
+      i=$((i + 1))
+      sleep 1
+    done
+
+    # Set up chain aliases
+    {{- if .Values.chainTracking.aliases }}
+    {{- range .Values.chainTracking.aliases }}
+    curl -s -m 5 -X POST -H 'Content-Type: application/json' \
+      --data '{"jsonrpc":"2.0","id":1,"method":"admin.aliasChain","params":{"chain":"C","alias":"{{ . }}"}}' \
+      http://127.0.0.1:{{ $httpPort }}/ext/admin >/dev/null 2>&1 || true
+    {{- end }}
+    {{- end }}
+
+    {{- if .Values.bootstrap.rlpImport.enabled }}
+    # C-Chain RLP import
+    MARKER="/data/.bootstrap-{{ .Values.network }}-import.done"
+    BOOTSTRAP_DIR="/data/bootstrap"
+
+    if [ ! -f "$MARKER" ]; then
+      height_hex=$(curl -s -m 10 -X POST -H 'Content-Type: application/json' \
+        --data '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}' \
+        http://127.0.0.1:{{ $httpPort }}/ext/bc/C/rpc | sed -n 's/.*"result":"\(0x[0-9A-Fa-f]*\)".*/\1/p' | head -n1)
+
+      if [ -z "$height_hex" ]; then
+        height_hex="0x0"
+      fi
+
+      height_dec=$(printf '%d' "$height_hex" 2>/dev/null || echo 0)
+      echo "[BOOTSTRAP] C-Chain height: $height_dec (hex: $height_hex)"
+
+      if [ "$height_dec" -lt "{{ int .Values.bootstrap.rlpImport.minHeight }}" ]; then
+        echo "[BOOTSTRAP] C-Chain below target ({{ int .Values.bootstrap.rlpImport.minHeight }}), starting RLP import..."
+        mkdir -p "$BOOTSTRAP_DIR"
+        RLP_FILE="${BOOTSTRAP_DIR}/{{ .Values.bootstrap.rlpImport.rlpFilename }}"
+
+        {{- if .Values.bootstrap.rlpImport.multiPart }}
+        # Download multi-part RLP
+        if [ ! -s "$RLP_FILE" ]; then
+          echo "[BOOTSTRAP] Downloading RLP parts..."
+          {{- range .Values.bootstrap.rlpImport.parts }}
+          PART_FILE="${BOOTSTRAP_DIR}/{{ $.Values.bootstrap.rlpImport.rlpFilename }}.part.{{ . }}"
+          if [ ! -s "$PART_FILE" ]; then
+            echo "[BOOTSTRAP] Downloading part {{ . }}..."
+            curl -fL --retry 5 --retry-delay 2 --retry-connrefused -o "$PART_FILE" \
+              "{{ $.Values.bootstrap.rlpImport.baseUrl }}/{{ $.Values.bootstrap.rlpImport.rlpFilename | replace ".rlp" "" }}.part.{{ . }}" || true
+          fi
+          {{- end }}
+          echo "[BOOTSTRAP] Assembling RLP file..."
+          cat "${BOOTSTRAP_DIR}"/{{ .Values.bootstrap.rlpImport.rlpFilename }}.part.* > "$RLP_FILE" 2>/dev/null || true
+        fi
+        {{- else }}
+        # Download single RLP file
+        if [ ! -s "$RLP_FILE" ]; then
+          echo "[BOOTSTRAP] Downloading RLP..."
+          curl -fL --retry 5 --retry-delay 2 --retry-connrefused -o "$RLP_FILE" \
+            "{{ .Values.bootstrap.rlpImport.baseUrl }}/{{ .Values.bootstrap.rlpImport.rlpFilename }}" || true
+        fi
+        {{- end }}
+
+        if [ -s "$RLP_FILE" ]; then
+          echo "[BOOTSTRAP] Starting import of $RLP_FILE..."
+          import_payload=$(printf '{"jsonrpc":"2.0","id":1,"method":"admin_importChain","params":["%s"]}' "$RLP_FILE")
+          import_result=$(curl -s -m {{ int .Values.bootstrap.rlpImport.timeout }} -X POST -H 'Content-Type: application/json' --data "$import_payload" http://127.0.0.1:{{ $httpPort }}/ext/bc/C/rpc || true)
+          echo "[BOOTSTRAP] Import result: $import_result"
+          echo "$import_result" | grep -q '"success":true' && touch "$MARKER" && echo "[BOOTSTRAP] Import complete" || echo "[BOOTSTRAP] Import did not return success"
+        else
+          echo "[BOOTSTRAP] RLP file missing or empty, skipping"
+        fi
+      else
+        echo "[BOOTSTRAP] C-Chain already at height $height_dec, skipping import"
+        touch "$MARKER"
+      fi
+    else
+      echo "[BOOTSTRAP] Import marker exists, skipping bootstrap"
+    fi
+    {{- end }}
+
+    wait "$LUXD_PID"

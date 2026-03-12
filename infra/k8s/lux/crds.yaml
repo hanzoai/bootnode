@@ -1,0 +1,378 @@
+---
+# Cluster CRD — generic blockchain node fleet
+# Managed by bootnode-operator, works for any chain.
+# Must match operator/src/crd.rs ClusterSpec
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clusters.bootnode.dev
+spec:
+  group: bootnode.dev
+  names:
+    kind: Cluster
+    plural: clusters
+    singular: cluster
+    shortNames:
+      - bc
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Chain
+          type: string
+          jsonPath: .spec.chain
+        - name: Network
+          type: string
+          jsonPath: .spec.network
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Ready
+          type: integer
+          jsonPath: .status.readyNodes
+        - name: Total
+          type: integer
+          jsonPath: .status.totalNodes
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: [chain, network, replicas]
+              properties:
+                chain:
+                  type: string
+                  description: "Chain type: lux, avalanche, ethereum, bitcoin"
+                network:
+                  type: string
+                  description: "Network: mainnet, testnet, devnet, etc."
+                replicas:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                image:
+                  type: object
+                  properties:
+                    repository:
+                      type: string
+                    tag:
+                      type: string
+                    pullPolicy:
+                      type: string
+                    pullSecrets:
+                      type: array
+                      items:
+                        type: string
+                resources:
+                  type: object
+                  properties:
+                    cpuRequest:
+                      type: string
+                    cpuLimit:
+                      type: string
+                    memoryRequest:
+                      type: string
+                    memoryLimit:
+                      type: string
+                storage:
+                  type: object
+                  properties:
+                    storageClass:
+                      type: string
+                    size:
+                      type: string
+                ports:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, port]
+                    properties:
+                      name:
+                        type: string
+                      port:
+                        type: integer
+                      protocol:
+                        type: string
+                service:
+                  type: object
+                  properties:
+                    serviceType:
+                      type: string
+                    annotations:
+                      type: object
+                      additionalProperties:
+                        type: string
+                    perNodeLb:
+                      type: boolean
+                bootstrap:
+                  type: object
+                  properties:
+                    useHostnames:
+                      type: boolean
+                    externalIps:
+                      type: array
+                      items:
+                        type: string
+                health:
+                  type: object
+                  properties:
+                    path:
+                      type: string
+                    method:
+                      type: string
+                    portName:
+                      type: string
+                    gracePeriodSeconds:
+                      type: integer
+                    checkIntervalSeconds:
+                      type: integer
+                    maxHeightSkew:
+                      type: integer
+                upgradeStrategy:
+                  type: object
+                  properties:
+                    strategyType:
+                      type: string
+                    maxUnavailable:
+                      type: integer
+                    healthCheckBetweenRestarts:
+                      type: boolean
+                    stabilizationSeconds:
+                      type: integer
+                startupGate:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                    minPeers:
+                      type: integer
+                    timeoutSeconds:
+                      type: integer
+                    checkIntervalSeconds:
+                      type: integer
+                allowScaleDown:
+                  type: boolean
+                chainConfig:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                  description: "Opaque chain-specific config interpreted by the driver"
+                genesis:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                genesisConfigMap:
+                  type: string
+                config:
+                  type: object
+                  additionalProperties:
+                    x-kubernetes-preserve-unknown-fields: true
+                init:
+                  type: object
+                  properties:
+                    clearData:
+                      type: boolean
+                    plugins:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          vmId:
+                            type: string
+                          binary:
+                            type: string
+                startupScript:
+                  type: string
+                security:
+                  type: object
+                  properties:
+                    runAsUser:
+                      type: integer
+                    runAsGroup:
+                      type: integer
+                    fsGroup:
+                      type: integer
+                adoptExisting:
+                  type: boolean
+                staking:
+                  type: object
+                  properties:
+                    secretName:
+                      type: string
+                    kms:
+                      type: object
+                      properties:
+                        provider:
+                          type: string
+                        keyIds:
+                          type: array
+                          items:
+                            type: string
+                seedRestore:
+                  type: object
+                  properties:
+                    source:
+                      type: string
+                    restorePolicy:
+                      type: string
+                    objectStoreUrl:
+                      type: string
+                    snapshotName:
+                      type: string
+                    sourcePvc:
+                      type: string
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                totalNodes:
+                  type: integer
+                readyNodes:
+                  type: integer
+                lastReconciled:
+                  type: string
+                observedGeneration:
+                  type: integer
+                nodes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      podName:
+                        type: string
+                      nodeId:
+                        type: string
+                      externalIp:
+                        type: string
+                      healthy:
+                        type: boolean
+                      bootstrapped:
+                        type: boolean
+                      connectedPeers:
+                        type: integer
+                      inboundPeers:
+                        type: integer
+                      outboundPeers:
+                        type: integer
+                      chainsCount:
+                        type: integer
+                      extra:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                degradedConditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      node:
+                        type: string
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                      since:
+                        type: string
+                metrics:
+                  type: object
+                  properties:
+                    minPHeight:
+                      type: integer
+                    maxPHeight:
+                      type: integer
+                    heightSkew:
+                      type: integer
+                    bootstrappedChains:
+                      type: integer
+                    totalPeers:
+                      type: integer
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+---
+# ChainDeployment CRD — individual subnet/L2 chain deployments
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: chaindeployments.bootnode.dev
+spec:
+  group: bootnode.dev
+  names:
+    kind: ChainDeployment
+    plural: chaindeployments
+    singular: chaindeployment
+    shortNames:
+      - cd
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Cluster
+          type: string
+          jsonPath: .spec.clusterRef
+        - name: ChainID
+          type: string
+          jsonPath: .spec.chainId
+        - name: Status
+          type: string
+          jsonPath: .status.phase
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: [clusterRef]
+              properties:
+                clusterRef:
+                  type: string
+                chainId:
+                  type: string
+                blockchainId:
+                  type: string
+                alias:
+                  type: string
+                config:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                chainStatus:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    properties:
+                      synced:
+                        type: boolean
+                      blockHeight:
+                        type: integer
+                      vmId:
+                        type: string

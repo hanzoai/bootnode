@@ -1,7 +1,7 @@
 """Real-time usage tracking with Redis.
 
 Tracks compute units in Redis for real-time rate limiting and quota checks.
-Batches writes to ClickHouse for analytics and billing.
+Batches writes to DataStore for analytics and billing.
 """
 
 import json
@@ -22,15 +22,15 @@ logger = structlog.get_logger()
 # Redis key prefixes
 CU_USAGE_KEY = "cu:usage:{project_id}:{period}"  # Monthly CU counter
 RATE_LIMIT_KEY = "rate:{project_id}:{window}"  # Per-second rate limit
-CU_BUFFER_KEY = "cu:buffer:{project_id}"  # Batch buffer for ClickHouse
+CU_BUFFER_KEY = "cu:buffer:{project_id}"  # Batch buffer for DataStore
 
 
 class UsageTracker:
-    """Track compute units in Redis, batch to ClickHouse."""
+    """Track compute units in Redis, batch to DataStore."""
 
     def __init__(self) -> None:
-        self._batch_size = 100  # Flush to ClickHouse after N records
-        self._batch_interval = 60  # Flush to ClickHouse after N seconds
+        self._batch_size = 100  # Flush to DataStore after N records
+        self._batch_interval = 60  # Flush to DataStore after N seconds
 
     def _get_period_key(self, project_id: uuid.UUID) -> str:
         """Get the current billing period key (YYYY-MM)."""
@@ -84,7 +84,7 @@ class UsageTracker:
         except Exception as e:
             logger.error("Failed to track usage in Redis", error=str(e))
 
-        # Buffer for ClickHouse batch insert
+        # Buffer for DataStore batch insert
         usage_record = {
             "project_id": str(project_id),
             "api_key_id": str(api_key_id) if api_key_id else None,
@@ -112,7 +112,7 @@ class UsageTracker:
             logger.error("Failed to buffer usage", error=str(e))
 
     async def _flush_buffer(self, project_id: uuid.UUID) -> None:
-        """Flush buffered usage records to ClickHouse."""
+        """Flush buffered usage records to DataStore."""
         if not datastore_client.is_connected:
             return
 
@@ -129,7 +129,7 @@ class UsageTracker:
             if not records_raw:
                 return
 
-            # Parse records and insert to ClickHouse
+            # Parse records and insert to DataStore
             records: list[dict[str, Any]] = []
             for record_str in records_raw:
                 try:
@@ -141,13 +141,13 @@ class UsageTracker:
             if records:
                 await datastore_client.insert("api_usage", records)
                 logger.debug(
-                    "Flushed usage to ClickHouse",
+                    "Flushed usage to DataStore",
                     project_id=str(project_id),
                     count=len(records),
                 )
 
         except Exception as e:
-            logger.error("Failed to flush buffer to ClickHouse", error=str(e))
+            logger.error("Failed to flush buffer to DataStore", error=str(e))
 
     async def get_current_usage(self, project_id: uuid.UUID) -> int:
         """Get current compute units used this billing period.
@@ -243,7 +243,7 @@ class UsageTracker:
         }
 
     async def flush_all_buffers(self) -> None:
-        """Flush all project buffers to ClickHouse. Called on shutdown."""
+        """Flush all project buffers to DataStore. Called on shutdown."""
         try:
             # Find all buffer keys
             cursor = 0

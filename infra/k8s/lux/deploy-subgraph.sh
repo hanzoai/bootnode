@@ -3,7 +3,8 @@
 #
 # Usage:
 #   ./deploy-subgraph.sh                          # Deploy all subgraphs
-#   ./deploy-subgraph.sh amm-v3                   # Deploy AMM V3 only
+#   ./deploy-subgraph.sh amm-v3                   # Deploy Lux AMM V3 only
+#   ./deploy-subgraph.sh zoo-amm-v3               # Deploy Zoo AMM V3 only
 #   ./deploy-subgraph.sh amm-v3 --wipe            # Wipe and redeploy AMM V3
 #
 # Prerequisites:
@@ -73,8 +74,32 @@ check_sync() {
 
 case "$SUBGRAPH" in
   amm-v3)
-    deploy_subgraph "amm-v3" "$EXCHANGE_DIR/subgraphs/dex-v3" "1.8.0"
+    deploy_subgraph "amm-v3" "$EXCHANGE_DIR/subgraphs/dex-v3" "2.1.0"
     check_sync "amm-v3"
+    ;;
+  zoo-amm-v3)
+    deploy_subgraph "zoo-amm-v3" "$EXCHANGE_DIR/subgraphs/zoo-v3" "1.0.0"
+    check_sync "zoo-amm-v3"
+    ;;
+  pars-amm-v2)
+    if [ -d "$EXCHANGE_DIR/subgraphs/pars-v2" ]; then
+      deploy_subgraph "pars-amm-v2" "$EXCHANGE_DIR/subgraphs/pars-v2" "1.0.0"
+      check_sync "pars-amm-v2"
+    else
+      echo "Pars AMM V2 subgraph not found at $EXCHANGE_DIR/subgraphs/pars-v2"
+    fi
+    ;;
+  hanzo-amm-v2)
+    if [ -d "$EXCHANGE_DIR/subgraphs/hanzo-v2" ]; then
+      deploy_subgraph "hanzo-amm-v2" "$EXCHANGE_DIR/subgraphs/hanzo-v2" "1.0.0"
+      check_sync "hanzo-amm-v2"
+    else
+      echo "Hanzo AMM V2 subgraph not found at $EXCHANGE_DIR/subgraphs/hanzo-v2"
+    fi
+    ;;
+  zoo-amm-v2)
+    deploy_subgraph "zoo-amm-v2" "$EXCHANGE_DIR/subgraphs/zoo-v2" "1.0.0"
+    check_sync "zoo-amm-v2"
     ;;
   amm-v2)
     if [ -d "$EXCHANGE_DIR/subgraphs/dex-factory" ]; then
@@ -87,17 +112,28 @@ case "$SUBGRAPH" in
   status)
     check_sync "amm-v3"
     check_sync "amm-v2"
+    check_sync "zoo-amm-v3"
+    check_sync "zoo-amm-v2"
+    check_sync "pars-amm-v2"
+    check_sync "hanzo-amm-v2"
     ;;
   all)
-    deploy_subgraph "amm-v3" "$EXCHANGE_DIR/subgraphs/dex-v3" "1.8.0"
-    if [ -d "$EXCHANGE_DIR/subgraphs/dex-factory" ]; then
-      deploy_subgraph "amm-v2" "$EXCHANGE_DIR/subgraphs/dex-factory" "1.0.0"
-    fi
+    deploy_subgraph "amm-v3" "$EXCHANGE_DIR/subgraphs/dex-v3" "2.1.0"
+    deploy_subgraph "amm-v2" "$EXCHANGE_DIR/subgraphs/dex-factory" "1.0.0"
+    deploy_subgraph "zoo-amm-v3" "$EXCHANGE_DIR/subgraphs/zoo-v3" "1.0.0"
+    deploy_subgraph "zoo-amm-v2" "$EXCHANGE_DIR/subgraphs/zoo-v2" "1.0.0"
+    deploy_subgraph "pars-amm-v2" "$EXCHANGE_DIR/subgraphs/pars-v2" "1.0.0"
+    deploy_subgraph "hanzo-amm-v2" "$EXCHANGE_DIR/subgraphs/hanzo-v2" "1.0.0"
     echo "=== Sync Status ==="
     check_sync "amm-v3"
+    check_sync "amm-v2"
+    check_sync "zoo-amm-v3"
+    check_sync "zoo-amm-v2"
+    check_sync "pars-amm-v2"
+    check_sync "hanzo-amm-v2"
     ;;
   *)
-    echo "Usage: $0 {amm-v3|amm-v2|all|status} [--wipe]"
+    echo "Usage: $0 {amm-v3|zoo-amm-v3|zoo-amm-v2|amm-v2|pars-amm-v2|hanzo-amm-v2|all|status} [--wipe]"
     exit 1
     ;;
 esac

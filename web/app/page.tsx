@@ -13,7 +13,9 @@ import {
   Code2,
   Database,
   Globe,
+  KeyRound,
   Layers,
+  Search,
   Shield,
   Wallet,
   Webhook,
@@ -46,8 +48,8 @@ export default function HomePage() {
             </h1>
             <p className="mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl">
               The complete blockchain development platform. Multi-chain RPC, Token
-              APIs, NFT APIs, Smart Wallets, Account Abstraction, and more. Ship
-              faster with {brand.name}.
+              APIs, Smart Wallets, Block Explorers, MPC key management, custom
+              Rollups, and more. Ship faster with {brand.name}.
             </p>
             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
               <Button size="xl" asChild>
@@ -76,7 +78,7 @@ export default function HomePage() {
               complete infrastructure stack for blockchain developers.
             </p>
           </div>
-          <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <ProductCard
               icon={<Globe className="h-6 w-6" />}
               title="Node"
@@ -94,6 +96,18 @@ export default function HomePage() {
               title="Wallets"
               description="Onboard users with secure, easy-to-use smart wallets. No seed phrase or gas required."
               href="/products/wallets"
+            />
+            <ProductCard
+              icon={<Search className="h-6 w-6" />}
+              title="Explorer"
+              description="Deploy your own block explorer with full transaction search, contract verification, and analytics."
+              href="/products/explorer"
+            />
+            <ProductCard
+              icon={<KeyRound className="h-6 w-6" />}
+              title="MPC"
+              description="Launch a threshold MPC network for institutional-grade key management. No single point of compromise."
+              href="/products/mpc"
             />
             <ProductCard
               icon={<Layers className="h-6 w-6" />}
@@ -237,7 +251,7 @@ export default function HomePage() {
               handle the heavy lifting so you can focus on building.
             </p>
           </div>
-          <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <APICard
               icon={<Globe className="h-6 w-6" />}
               title="RPC API"
@@ -273,6 +287,18 @@ export default function HomePage() {
               title="Smart Wallets"
               description="ERC-4337 account abstraction with gas sponsorship, batched transactions, and social login."
               features={["Gasless txs", "Session keys", "Social recovery"]}
+            />
+            <APICard
+              icon={<Search className="h-6 w-6" />}
+              title="Explorer API"
+              description="Programmatic access to your block explorer. Search transactions, verify contracts, export data."
+              features={["Contract verification", "Token tracking", "Analytics"]}
+            />
+            <APICard
+              icon={<KeyRound className="h-6 w-6" />}
+              title="MPC Signing"
+              description="Threshold signatures via distributed MPC nodes. ECDSA and EdDSA across 15+ chains."
+              features={["CGGMP21 & FROST", "Key resharing", "Audit trails"]}
             />
           </div>
         </div>

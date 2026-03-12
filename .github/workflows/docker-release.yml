@@ -1,0 +1,120 @@
+name: Docker Release
+
+on:
+  # Only deploy after CI passes on main
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  # Tags deploy directly (release cuts)
+  push:
+    tags: ["v*"]
+  # Manual override
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Gate: only proceed if CI passed (skip check for tags/manual)
+  gate:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - run: echo "CI passed — proceeding with Docker build and deploy"
+
+  # Build API image via standard Hanzo reusable workflow
+  api:
+    needs: gate
+    uses: hanzoai/.github/.github/workflows/docker-build.yml@main
+    with:
+      image: ghcr.io/hanzoai/bootnode
+      context: ./api
+      dockerfile: Dockerfile
+      platforms: "linux/amd64"
+      deploy: false  # Custom deploy below (bootnode-k8s, not hanzo-k8s)
+    secrets: inherit
+
+  # Build Web image via standard Hanzo reusable workflow
+  web:
+    needs: gate
+    uses: hanzoai/.github/.github/workflows/docker-build.yml@main
+    with:
+      image: ghcr.io/hanzoai/bootnode-web
+      context: ./web
+      dockerfile: Dockerfile
+      platforms: "linux/amd64"
+      deploy: false  # Custom deploy below
+    secrets: inherit
+
+  # Deploy to bootnode-k8s + lux-k8s (separate DOKS clusters, need doctl)
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [api, web]
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.head_branch == 'main'
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      # --- bootnode-k8s cluster ---
+      - name: Save kubeconfig (bootnode-k8s)
+        run: doctl kubernetes cluster kubeconfig save ${{ secrets.K8S_CLUSTER_NAME }}
+
+      - name: Apply manifests (bootnode-k8s)
+        run: |
+          kubectl apply -f infra/k8s/namespace.yaml
+          kubectl apply -f infra/k8s/external-secrets.yaml
+          kubectl apply -f infra/k8s/secrets.yaml
+          kubectl apply -f infra/k8s/api-deployment.yaml
+          kubectl apply -f infra/k8s/web-deployments.yaml
+          kubectl apply -f infra/k8s/ingress.yaml
+
+      - name: Rollout API (bootnode-k8s)
+        run: |
+          kubectl rollout restart deployment/bootnode-api -n bootnode
+          kubectl rollout status deployment/bootnode-api -n bootnode --timeout=300s
+
+      - name: Rollout web portals (bootnode-k8s)
+        run: |
+          for brand in hanzo lux zoo pars; do
+            kubectl rollout restart deployment/bootnode-web-${brand} -n bootnode
+            kubectl rollout status deployment/bootnode-web-${brand} -n bootnode --timeout=300s
+          done
+
+      - name: Cleanup legacy deployments (bootnode-k8s)
+        run: |
+          # Remove old web3-platform-* resources after new bootnode-* are running
+          for old in $(kubectl get deployments -n bootnode -o name | grep 'web3-platform'); do
+            echo "Deleting legacy $old"
+            kubectl delete $old -n bootnode --ignore-not-found
+          done
+          for old in $(kubectl get svc -n bootnode -o name | grep 'web3-platform'); do
+            echo "Deleting legacy $old"
+            kubectl delete $old -n bootnode --ignore-not-found
+          done
+          for old in $(kubectl get ingress -n bootnode -o name | grep 'web3-platform'); do
+            echo "Deleting legacy $old"
+            kubectl delete $old -n bootnode --ignore-not-found
+          done
+
+      # --- lux-k8s cluster ---
+      - name: Save kubeconfig (lux-k8s)
+        run: doctl kubernetes cluster kubeconfig save ${{ secrets.LUX_K8S_CLUSTER_NAME }}
+
+      - name: Deploy operator to lux-k8s
+        run: |
+          kubectl apply -f infra/k8s/lux/crds.yaml
+          kubectl apply -f infra/k8s/lux/rbac.yaml
+          kubectl apply -f infra/k8s/lux/operator-deployment.yaml
+          kubectl rollout status deployment/bootnode-operator -n bootnode-system --timeout=120s

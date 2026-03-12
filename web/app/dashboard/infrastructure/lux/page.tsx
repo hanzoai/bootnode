@@ -210,7 +210,7 @@ export default function LuxFleetsPage() {
       if (!selectedCluster) return
       if (!silent) setLoading(true)
       try {
-        const data = await apiFetch(`/v1/lux/fleets?cluster_id=${selectedCluster}`)
+        const data = await apiFetch(`/v1/fleets?cluster_id=${selectedCluster}&chain=lux`)
         setFleets(Array.isArray(data) ? data : [])
         setError(null)
       } catch (e) {
@@ -225,7 +225,7 @@ export default function LuxFleetsPage() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const data = await apiFetch("/v1/lux/stats")
+      const data = await apiFetch("/v1/fleets/stats?cluster_id=${selectedCluster}&chain=lux")
       setStats(data)
     } catch {
       // best-effort
@@ -234,7 +234,7 @@ export default function LuxFleetsPage() {
 
   const fetchNetworks = useCallback(async () => {
     try {
-      const data = await apiFetch("/v1/lux/networks")
+      const data = await apiFetch("/v1/fleets/networks?chain=lux")
       if (Array.isArray(data)) setNetworks(data)
     } catch {
       // best-effort
@@ -246,7 +246,7 @@ export default function LuxFleetsPage() {
       if (!selectedCluster) return
       try {
         const data: LuxFleetResponse = await apiFetch(
-          `/v1/lux/fleets/${selectedCluster}/${network}`,
+          `/v1/fleets/lux/${selectedCluster}/${network}`,
         )
         setFleetDetails((prev) => ({ ...prev, [`${selectedCluster}/${network}`]: data }))
       } catch {
@@ -294,15 +294,18 @@ export default function LuxFleetsPage() {
     setCreating(true)
     setCreateError(null)
     try {
-      await apiFetch("/v1/lux/fleets", {
+      await apiFetch("/v1/fleets", {
         method: "POST",
         body: JSON.stringify({
           name: formName.trim(),
           cluster_id: selectedCluster,
+          chain: "lux",
           network: formNetwork,
           replicas: formReplicas,
-          image_tag: formImageTag.trim(),
-          chain_tracking: formChainTracking,
+          chain_config: {
+            image_tag: formImageTag.trim(),
+            chain_tracking: formChainTracking,
+          },
         }),
       })
       setCreateOpen(false)
@@ -329,7 +332,7 @@ export default function LuxFleetsPage() {
     setActionLoading(network)
     try {
       await apiFetch(
-        `/v1/lux/fleets/${selectedCluster}/${network}/scale?replicas=${replicas}`,
+        `/v1/fleets/lux/${selectedCluster}/${network}/scale?replicas=${replicas}`,
         { method: "POST" },
       )
       setScaleTarget(null)
@@ -344,7 +347,7 @@ export default function LuxFleetsPage() {
   async function handleRestart(network: NetworkType) {
     setActionLoading(network)
     try {
-      await apiFetch(`/v1/lux/fleets/${selectedCluster}/${network}/restart`, {
+      await apiFetch(`/v1/fleets/lux/${selectedCluster}/${network}/restart`, {
         method: "POST",
       })
       setConfirmRestart(null)
@@ -359,7 +362,7 @@ export default function LuxFleetsPage() {
   async function handleDestroy(network: NetworkType) {
     setActionLoading(network)
     try {
-      await apiFetch(`/v1/lux/fleets/${selectedCluster}/${network}`, {
+      await apiFetch(`/v1/fleets/lux/${selectedCluster}/${network}`, {
         method: "DELETE",
       })
       setConfirmDestroy(null)
@@ -918,15 +921,15 @@ export default function LuxFleetsPage() {
         <CardContent>
           <div className="space-y-2">
             {[
-              { method: "GET", path: "/v1/lux/fleets?cluster_id=xxx", desc: "List fleets" },
-              { method: "GET", path: "/v1/lux/fleets/{cluster_id}/{network}", desc: "Fleet detail with nodes" },
-              { method: "POST", path: "/v1/lux/fleets", desc: "Create fleet" },
-              { method: "PATCH", path: "/v1/lux/fleets/{cluster_id}/{network}", desc: "Update fleet config" },
-              { method: "DELETE", path: "/v1/lux/fleets/{cluster_id}/{network}", desc: "Destroy fleet" },
-              { method: "POST", path: "/v1/lux/fleets/{cluster_id}/{network}/scale?replicas=N", desc: "Scale replicas" },
-              { method: "POST", path: "/v1/lux/fleets/{cluster_id}/{network}/restart", desc: "Rolling restart" },
-              { method: "GET", path: "/v1/lux/stats", desc: "Fleet statistics" },
-              { method: "GET", path: "/v1/lux/networks", desc: "Network configs" },
+              { method: "GET", path: "/v1/fleets?cluster_id=xxx", desc: "List fleets" },
+              { method: "GET", path: "/v1/fleets/{cluster_id}/{network}", desc: "Fleet detail with nodes" },
+              { method: "POST", path: "/v1/fleets", desc: "Create fleet" },
+              { method: "PATCH", path: "/v1/fleets/{cluster_id}/{network}", desc: "Update fleet config" },
+              { method: "DELETE", path: "/v1/fleets/{cluster_id}/{network}", desc: "Destroy fleet" },
+              { method: "POST", path: "/v1/fleets/{cluster_id}/{network}/scale?replicas=N", desc: "Scale replicas" },
+              { method: "POST", path: "/v1/fleets/{cluster_id}/{network}/restart", desc: "Rolling restart" },
+              { method: "GET", path: "/v1/fleets/stats?cluster_id=${selectedCluster}&chain=lux", desc: "Fleet statistics" },
+              { method: "GET", path: "/v1/fleets/networks?chain=lux", desc: "Network configs" },
             ].map((ep) => (
               <div
                 key={ep.method + ep.path}

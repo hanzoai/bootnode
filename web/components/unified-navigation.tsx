@@ -19,20 +19,20 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useAuth, OrgBadge } from "@/lib/auth"
 import { getBrand } from "@/lib/brand"
-import { 
-  Activity, 
-  Server, 
-  Network, 
-  Database, 
-  Users, 
-  Settings, 
-  CreditCard, 
-  Key, 
-  Webhook, 
-  BarChart3, 
-  Coins, 
-  Shield, 
-  Building, 
+import {
+  Activity,
+  Server,
+  Network,
+  Database,
+  Users,
+  Settings,
+  CreditCard,
+  Key,
+  Webhook,
+  BarChart3,
+  Coins,
+  Shield,
+  Building,
   UserPlus,
   ChevronDown,
   Menu,
@@ -42,8 +42,24 @@ import {
   Globe,
   Code,
   FileText,
-  Bell
+  Bell,
+  Boxes,
+  Eye,
+  ExternalLink,
+  Search,
+  ArrowLeftRight,
+  ArrowUpDown,
+  ShoppingBag,
+  Wallet,
+  Droplets,
+  Vote,
+  Bot,
+  Brain,
+  MessageCircle,
+  MessageSquare,
+  Sparkles,
 } from "lucide-react"
+import { CommandMenu } from "@/components/command-menu"
 
 interface NavigationItem {
   name: string
@@ -73,10 +89,12 @@ export function UnifiedNavigation() {
       name: "Infrastructure",
       href: "/dashboard/infrastructure",
       icon: Server,
-      description: "Manage nodes, networks, and infrastructure",
+      description: "Manage nodes, networks, services, and infrastructure",
       children: [
         { name: "Nodes", href: "/dashboard/infrastructure/nodes", icon: Server },
         { name: "Networks", href: "/dashboard/infrastructure/networks", icon: Network },
+        { name: "Services", href: "/dashboard/infrastructure/services", icon: Boxes },
+        { name: "Observability", href: "/dashboard/infrastructure/observability", icon: Eye },
         { name: "Monitoring", href: "/dashboard/infrastructure/monitoring", icon: Activity },
       ]
     },
@@ -128,6 +146,22 @@ export function UnifiedNavigation() {
     }
   ]
 
+  // Ecosystem apps from brand config
+  const brand = getBrand()
+  const ecosystemNavigation: NavigationItem[] = brand.ecosystemApps.length > 0
+    ? [{
+        name: "Ecosystem",
+        href: "/dashboard/ecosystem",
+        icon: Globe,
+        description: "Ecosystem apps and services",
+        children: brand.ecosystemApps.map(app => ({
+          name: app.name,
+          href: app.href,
+          icon: ExternalLink,
+        })),
+      }]
+    : []
+
   // Admin-only navigation
   const adminNavigation: NavigationItem[] = [
     {
@@ -152,7 +186,7 @@ export function UnifiedNavigation() {
 
   const organizations = [
     { id: "hanzo", name: "Hanzo", domain: "hanzo.id", color: "#0066ff" },
-    { id: "zoo", name: "Zoo Labs", domain: "zoo.id", color: "#00cc66" },
+    { id: "zoo", name: "Zoo Labs", domain: "id.zoo.network", color: "#00cc66" },
     { id: "lux", name: "Lux Network", domain: "lux.id", color: "#8b5cf6" },
     { id: "pars", name: "Pars", domain: "pars.id", color: "#f59e0b" },
   ]
@@ -215,6 +249,9 @@ export function UnifiedNavigation() {
 
             {/* Right side */}
             <div className="flex items-center space-x-4">
+              {/* Command Menu + AI Chat */}
+              <CommandMenu />
+
               {/* Notifications */}
               <Button variant="ghost" size="sm">
                 <Bell className="h-5 w-5" />
@@ -274,6 +311,20 @@ export function UnifiedNavigation() {
             <NavItem key={item.name} item={item} isActive={isActive} />
           ))}
 
+          {/* Ecosystem Apps */}
+          {ecosystemNavigation.length > 0 && (
+            <>
+              <div className="pt-4 mt-4 border-t border-border">
+                <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Ecosystem
+                </h3>
+              </div>
+              {ecosystemNavigation.map((item) => (
+                <NavItem key={item.name} item={item} isActive={isActive} />
+              ))}
+            </>
+          )}
+
           {/* Admin Navigation (if admin) */}
           {isAdmin && (
             <>
@@ -312,7 +363,7 @@ export function UnifiedNavigation() {
           <div className="absolute inset-0 bg-black opacity-25" onClick={() => setMobileMenuOpen(false)} />
           <div className="absolute left-0 top-16 w-64 h-full bg-background border-r border-border overflow-y-auto">
             <nav className="p-4 space-y-2">
-              {navigation.concat(isAdmin ? adminNavigation : []).map((item) => (
+              {navigation.concat(ecosystemNavigation).concat(isAdmin ? adminNavigation : []).map((item) => (
                 <NavItem 
                   key={item.name} 
                   item={item} 
@@ -382,23 +433,31 @@ function NavItem({
       {/* Sub-navigation */}
       {hasChildren && isExpanded && (
         <div className="ml-8 mt-1 space-y-1">
-          {item.children!.map((child) => (
-            <Link
-              key={child.name}
-              href={child.href}
-              onClick={onClick}
-              className={`
-                flex items-center space-x-2 px-3 py-2 text-sm rounded-md transition-colors
-                ${isActive(child.href)
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-accent'
-                }
-              `}
-            >
-              <child.icon className="h-4 w-4" />
-              <span>{child.name}</span>
-            </Link>
-          ))}
+          {item.children!.map((child) => {
+            const isExternal = child.href.startsWith("http")
+            const linkProps = isExternal
+              ? { target: "_blank" as const, rel: "noopener noreferrer" }
+              : {}
+            return (
+              <Link
+                key={child.name}
+                href={child.href}
+                onClick={onClick}
+                {...linkProps}
+                className={`
+                  flex items-center space-x-2 px-3 py-2 text-sm rounded-md transition-colors
+                  ${!isExternal && isActive(child.href)
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-accent'
+                  }
+                `}
+              >
+                <child.icon className="h-4 w-4" />
+                <span>{child.name}</span>
+                {isExternal && <ExternalLink className="h-3 w-3 ml-auto opacity-50" />}
+              </Link>
+            )
+          })}
         </div>
       )}
     </div>

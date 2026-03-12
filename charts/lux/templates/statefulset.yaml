@@ -1,0 +1,226 @@
+{{- $network := index .Values.networks .Values.network }}
+{{- $namespace := $network.namespace }}
+{{- $stakingPort := $network.stakingPort }}
+{{- $httpPort := $network.httpPort }}
+{{- $replicas := int .Values.replicas }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: luxd
+  namespace: {{ $namespace }}
+  annotations:
+    lux.network/protect-pvc: "true"
+spec:
+  serviceName: luxd-headless
+  replicas: {{ .Values.replicas }}
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: {{ .Values.upgradeStrategy.type | default "OnDelete" }}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  selector:
+    matchLabels:
+      app: luxd
+      lux-network: {{ .Values.network }}
+  template:
+    metadata:
+      labels:
+        app: luxd
+        lux-network: {{ .Values.network }}
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+      terminationGracePeriodSeconds: 30
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      serviceAccountName: luxd
+      initContainers:
+      - name: init-plugins
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          set -e
+          IDX=${HOSTNAME##*-}
+          echo "=== Init for luxd-${IDX} ({{ .Values.network }}) ==="
+
+          {{- if .Values.initMode.clearData }}
+          echo "=== Clearing data for re-genesis (preserving RLP) ==="
+          rm -rf /data/chainData /data/db /data/genesis.bytes /data/.bootstrap-*-import.done /data/.seeded
+          echo "Data cleared"
+          {{- else }}
+          echo "=== Preserving existing data ==="
+          {{- end }}
+
+          {{- if .Values.seedRestore.enabled }}
+          # ─── Seed Restore (idempotent via marker file) ───
+          SEED_MARKER="{{ .Values.seedRestore.markerPath | default "/data/.seeded" }}"
+          if [ ! -f "$SEED_MARKER" ]; then
+            echo "[SEED] Starting seed restore..."
+            {{- if eq .Values.seedRestore.sourceType "ObjectStore" }}
+            echo "[SEED] Downloading snapshot from {{ .Values.seedRestore.objectStoreUrl }}..."
+            curl -fL --retry 5 --retry-delay 5 -o /tmp/snapshot.tar.zst "{{ .Values.seedRestore.objectStoreUrl }}" && \
+            echo "[SEED] Extracting snapshot..." && \
+            (zstd -d /tmp/snapshot.tar.zst -o /tmp/snapshot.tar 2>/dev/null || cp /tmp/snapshot.tar.zst /tmp/snapshot.tar) && \
+            tar xf /tmp/snapshot.tar -C /data && \
+            rm -f /tmp/snapshot.tar /tmp/snapshot.tar.zst && \
+            touch "$SEED_MARKER" && \
+            echo "[SEED] Restore complete" || echo "[SEED] Restore failed"
+            {{- else if or (eq .Values.seedRestore.sourceType "PVCClone") (eq .Values.seedRestore.sourceType "VolumeSnapshot") }}
+            # PVC was created from snapshot/clone
+            if [ -d "/data/db" ] || [ -d "/data/chainData" ]; then
+              echo "[SEED] Data found from PVC clone/snapshot"
+              touch "$SEED_MARKER"
+            else
+              echo "[SEED] WARNING: PVC clone/snapshot has no data"
+            fi
+            {{- else }}
+            echo "[SEED] No seed source configured, skipping"
+            {{- end }}
+          else
+            echo "[SEED] Marker $SEED_MARKER exists, skipping restore"
+          fi
+          {{- end }}
+
+          # Set up plugins
+          echo "=== Setting up plugins ==="
+          mkdir -p /data/plugins
+          # C-Chain EVM plugin
+          cp /luxd/build/plugins/mgj786NP7uDwBCcq6YwThhaN8FLyybkCa4zBWTQbNgmK6k9A6 /data/plugins/
+          # Subnet EVM plugin (same binary, different VM ID)
+          cp /luxd/build/plugins/mgj786NP7uDwBCcq6YwThhaN8FLyybkCa4zBWTQbNgmK6k9A6 /data/plugins/ag3GReYPNuSR17rUP8acMdZipQBikdXNRKDyFszAysmy3vDXE
+
+          # Set up staking keys
+          echo "=== Setting up staking keys ==="
+          mkdir -p /data/staking
+          cp /staking-keys/staker-${IDX}.crt /data/staking/staker.crt
+          cp /staking-keys/staker-${IDX}.key /data/staking/staker.key
+          if [ -f "/staking-keys/signer-${IDX}.key" ]; then
+            cp /staking-keys/signer-${IDX}.key /data/staking/signer.key
+          fi
+          chown -R 1000:1000 /data/staking
+          chmod 600 /data/staking/*
+          echo "=== Init complete ==="
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: staking-keys
+          mountPath: /staking-keys
+          readOnly: true
+      {{- if .Values.startupGate.enabled }}
+      - name: startup-gate
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          set -e
+          POD_INDEX=${HOSTNAME##*-}
+          MIN_PEERS={{ .Values.startupGate.minPeers | default 2 }}
+          TIMEOUT={{ .Values.startupGate.timeoutSeconds | default 300 }}
+          INTERVAL={{ .Values.startupGate.checkIntervalSeconds | default 5 }}
+          DNS_PREFIX="luxd"
+          DNS_SUFFIX="luxd-headless.{{ $namespace }}.svc.cluster.local"
+          START=$(date +%s)
+
+          echo "[GATE] Waiting for $MIN_PEERS peers on staking port {{ $stakingPort }} (timeout ${TIMEOUT}s)..."
+
+          while true; do
+            REACHABLE=0
+            {{- range $i := until $replicas }}
+            if [ "$POD_INDEX" != "{{ $i }}" ]; then
+              if nc -z -w 2 "${DNS_PREFIX}-{{ $i }}.${DNS_SUFFIX}" {{ $stakingPort }} 2>/dev/null; then
+                REACHABLE=$((REACHABLE + 1))
+              fi
+            fi
+            {{- end }}
+
+            if [ "$REACHABLE" -ge "$MIN_PEERS" ]; then
+              echo "[GATE] $REACHABLE peers reachable, proceeding"
+              break
+            fi
+
+            ELAPSED=$(( $(date +%s) - START ))
+            if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+              echo "[GATE] WARNING: Timeout after ${ELAPSED}s with only $REACHABLE peers. Starting anyway."
+              break
+            fi
+
+            echo "[GATE] $REACHABLE/$MIN_PEERS peers reachable (${ELAPSED}/${TIMEOUT}s), waiting ${INTERVAL}s..."
+            sleep "$INTERVAL"
+          done
+      {{- end }}
+      containers:
+      - name: luxd
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/bin/sh", "/scripts/startup.sh"]
+        ports:
+        - name: http
+          containerPort: {{ $httpPort }}
+        - name: staking
+          containerPort: {{ $stakingPort }}
+        livenessProbe:
+          httpGet:
+            path: /ext/health
+            port: {{ $httpPort }}
+          initialDelaySeconds: 60
+          periodSeconds: 15
+          failureThreshold: 5
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /ext/health
+            port: {{ $httpPort }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 3
+          timeoutSeconds: 5
+        startupProbe:
+          tcpSocket:
+            port: {{ $httpPort }}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 60
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: genesis
+          mountPath: /genesis
+          readOnly: true
+        - name: startup-script
+          mountPath: /scripts
+        - name: staking-keys
+          mountPath: /staking-keys
+          readOnly: true
+      volumes:
+      - name: genesis
+        configMap:
+          name: {{ .Values.genesis.configMapName }}
+      - name: startup-script
+        configMap:
+          name: luxd-startup
+          defaultMode: 0755
+      - name: staking-keys
+        secret:
+          secretName: {{ .Values.staking.secretName }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: {{ .Values.storage.storageClass }}
+      resources:
+        requests:
+          storage: {{ .Values.storage.size }}

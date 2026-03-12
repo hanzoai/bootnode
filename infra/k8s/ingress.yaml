@@ -1,7 +1,12 @@
+# Bootnode ingress — multi-brand API + web portals
+# All API domains → bootnode-api:80
+# Each web domain → brand-specific bootnode-web-{brand}:3001
+---
+# ========== Hanzo Web3 ==========
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: hanzo-web3-ingress
+  name: bootnode-hanzo-ingress
   namespace: bootnode
   annotations:
     kubernetes.io/ingress.class: nginx
@@ -10,15 +15,13 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
-    nginx.ingress.kubernetes.io/rate-limit: "100"
-    nginx.ingress.kubernetes.io/rate-limit-window: "1s"
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - web3.hanzo.ai
         - api.web3.hanzo.ai
-      secretName: hanzo-web3-tls
+      secretName: bootnode-hanzo-tls
   rules:
     - host: web3.hanzo.ai
       http:
@@ -27,7 +30,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: hanzo-web3
+                name: bootnode-web-hanzo
                 port:
                   number: 3001
     - host: api.web3.hanzo.ai
@@ -44,7 +47,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: hanzo-web3-ws-ingress
+  name: bootnode-hanzo-ws-ingress
   namespace: bootnode
   annotations:
     kubernetes.io/ingress.class: nginx
@@ -59,9 +62,51 @@ spec:
   tls:
     - hosts:
         - ws.web3.hanzo.ai
-      secretName: hanzo-web3-ws-tls
+      secretName: bootnode-hanzo-ws-tls
   rules:
     - host: ws.web3.hanzo.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-api
+                port:
+                  number: 80
+---
+# ========== Lux Web3 ==========
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bootnode-lux-ingress
+  namespace: bootnode
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - web3.lux.network
+        - api.web3.lux.network
+      secretName: bootnode-lux-tls
+  rules:
+    - host: web3.lux.network
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-web-lux
+                port:
+                  number: 3001
+    - host: api.web3.lux.network
       http:
         paths:
           - path: /
@@ -75,7 +120,39 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: bootnode-ingress
+  name: bootnode-lux-ws-ingress
+  namespace: bootnode
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
+    nginx.ingress.kubernetes.io/websocket-services: "bootnode-api"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - ws.web3.lux.network
+      secretName: bootnode-lux-ws-tls
+  rules:
+    - host: ws.web3.lux.network
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-api
+                port:
+                  number: 80
+---
+# ========== Zoo Web3 ==========
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bootnode-zoo-ingress
   namespace: bootnode
   annotations:
     kubernetes.io/ingress.class: nginx
@@ -84,15 +161,159 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
-    nginx.ingress.kubernetes.io/rate-limit: "100"
-    nginx.ingress.kubernetes.io/rate-limit-window: "1s"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - web3.zoo.ngo
+        - api.web3.zoo.ngo
+      secretName: bootnode-zoo-tls
+  rules:
+    - host: web3.zoo.ngo
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-web-zoo
+                port:
+                  number: 3001
+    - host: api.web3.zoo.ngo
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-api
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bootnode-zoo-ws-ingress
+  namespace: bootnode
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
+    nginx.ingress.kubernetes.io/websocket-services: "bootnode-api"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - ws.web3.zoo.ngo
+      secretName: bootnode-zoo-ws-tls
+  rules:
+    - host: ws.web3.zoo.ngo
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-api
+                port:
+                  number: 80
+---
+# ========== Pars Web3 ==========
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bootnode-pars-ingress
+  namespace: bootnode
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - web3.pars.id
+        - api.web3.pars.id
+      secretName: bootnode-pars-tls
+  rules:
+    - host: web3.pars.id
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-web-pars
+                port:
+                  number: 3001
+    - host: api.web3.pars.id
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-api
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bootnode-pars-ws-ingress
+  namespace: bootnode
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
+    nginx.ingress.kubernetes.io/websocket-services: "bootnode-api"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - ws.web3.pars.id
+      secretName: bootnode-pars-ws-tls
+  rules:
+    - host: ws.web3.pars.id
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-api
+                port:
+                  number: 80
+---
+# ========== Bootnode brand (bootno.de) ==========
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bootnode-brand-ingress
+  namespace: bootnode
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - bootno.de
         - api.bootno.de
-      secretName: bootnode-tls
+      secretName: bootnode-brand-tls
   rules:
     - host: bootno.de
       http:
@@ -101,7 +322,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: bootnode-web
+                name: bootnode-web-hanzo
                 port:
                   number: 3001
     - host: api.bootno.de
@@ -118,7 +339,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: bootnode-ws-ingress
+  name: bootnode-brand-ws-ingress
   namespace: bootnode
   annotations:
     kubernetes.io/ingress.class: nginx
@@ -133,7 +354,7 @@ spec:
   tls:
     - hosts:
         - ws.bootno.de
-      secretName: bootnode-ws-tls
+      secretName: bootnode-brand-ws-tls
   rules:
     - host: ws.bootno.de
       http:
@@ -145,3 +366,102 @@ spec:
                 name: bootnode-api
                 port:
                   number: 80
+---
+# ========== Bootnode Docs (docs.bootno.de) ==========
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bootnode-docs-ingress
+  namespace: bootnode
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - docs.bootno.de
+      secretName: bootnode-docs-tls
+  rules:
+    - host: docs.bootno.de
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-docs
+                port:
+                  number: 3005
+---
+# ========== Lux Cloud (cloud.lux.network) ==========
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bootnode-lux-cloud-ingress
+  namespace: bootnode
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - cloud.lux.network
+        - api.cloud.lux.network
+      secretName: bootnode-lux-cloud-tls
+  rules:
+    - host: cloud.lux.network
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-web-lux
+                port:
+                  number: 3001
+    - host: api.cloud.lux.network
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-api
+                port:
+                  number: 80
+---
+# ========== Lux Build (lux.build) ==========
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bootnode-lux-build-ingress
+  namespace: bootnode
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - lux.build
+      secretName: bootnode-lux-build-tls
+  rules:
+    - host: lux.build
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-web-lux
+                port:
+                  number: 3001

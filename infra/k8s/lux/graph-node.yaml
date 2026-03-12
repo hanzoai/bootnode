@@ -30,6 +30,30 @@ data:
     provider = [
       { label = "lux-mainnet", url = "http://luxd-0.luxd-headless.lux-mainnet.svc:9630/ext/bc/C/rpc", features = ["archive"] }
     ]
+
+    [chains.zoo]
+    shard = "primary"
+    provider = [
+      { label = "zoo-mainnet", url = "http://luxd-0.luxd-headless.lux-mainnet.svc:9630/ext/bc/2Y625Kvdd4wZ5LKx9kLSf1jGALyARmXVN1YsTb4F3Hzv4bPDbp/rpc", features = ["archive"] }
+    ]
+
+    [chains.pars]
+    shard = "primary"
+    provider = [
+      { label = "pars-mainnet", url = "http://luxd-0.luxd-headless.lux-mainnet.svc:9630/ext/bc/2pUskxqaL5Bpx7uRUGG1fDjPckjxQ4UKX4sLKeaS1NdSVBJd3F/rpc", features = ["archive"] }
+    ]
+
+    [chains.hanzo]
+    shard = "primary"
+    provider = [
+      { label = "hanzo-mainnet", url = "http://luxd-0.luxd-headless.lux-mainnet.svc:9630/ext/bc/2GiQb73CeJESjc4omFv2YtQHZrRgJf25NXPzAr5J6UNHRcDV2F/rpc", features = ["archive"] }
+    ]
+
+    [chains.spc]
+    shard = "primary"
+    provider = [
+      { label = "spc-mainnet", url = "http://luxd-0.luxd-headless.lux-mainnet.svc:9630/ext/bc/rtjwvtE1tEvrokmpeYdTq7b2zqZgmybKwR5MLjKMGAR1W78dQ/rpc", features = ["archive"] }
+    ]
 ---
 apiVersion: apps/v1
 kind: StatefulSet

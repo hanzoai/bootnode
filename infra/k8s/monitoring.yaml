@@ -1,0 +1,238 @@
+# Bootnode monitoring — ServiceMonitor, Grafana dashboard, PrometheusRules
+---
+# ServiceMonitor for bootnode-api (Prometheus scraping)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: bootnode-api
+  namespace: bootnode
+  labels:
+    app: bootnode-api
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: bootnode-api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - bootnode
+---
+# PrometheusRule — bootnode alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: bootnode-alerts
+  namespace: bootnode
+  labels:
+    app: bootnode
+    release: prometheus
+spec:
+  groups:
+    - name: bootnode.rules
+      rules:
+        - alert: BootnodeAPIHighErrorRate
+          expr: |
+            sum(rate(http_server_requests_total{namespace="bootnode",status=~"5.."}[5m]))
+            /
+            sum(rate(http_server_requests_total{namespace="bootnode"}[5m]))
+            > 0.05
+          for: 5m
+          labels:
+            severity: critical
+            service: bootnode-api
+          annotations:
+            summary: "Bootnode API error rate above 5%"
+            description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+
+        - alert: BootnodeAPIHighLatency
+          expr: |
+            histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{namespace="bootnode"}[5m])) by (le))
+            > 1.0
+          for: 10m
+          labels:
+            severity: warning
+            service: bootnode-api
+          annotations:
+            summary: "Bootnode API p95 latency above 1s"
+            description: "p95 latency is {{ $value | humanizeDuration }} over the last 10 minutes."
+
+        - alert: BootnodeServiceDown
+          expr: |
+            kube_deployment_status_replicas_available{namespace="bootnode"}
+            /
+            kube_deployment_spec_replicas{namespace="bootnode"}
+            < 1
+          for: 3m
+          labels:
+            severity: critical
+            service: "{{ $labels.deployment }}"
+          annotations:
+            summary: "Bootnode service {{ $labels.deployment }} has no ready replicas"
+            description: "{{ $labels.deployment }} has 0 available replicas for 3+ minutes."
+
+        - alert: BootnodeFleetDegraded
+          expr: |
+            kube_statefulset_status_replicas_ready{namespace=~"lux-.*"}
+            <
+            kube_statefulset_spec_replicas{namespace=~"lux-.*"}
+          for: 5m
+          labels:
+            severity: warning
+            service: "{{ $labels.statefulset }}"
+          annotations:
+            summary: "Validator fleet {{ $labels.statefulset }} degraded"
+            description: "{{ $labels.statefulset }} has {{ $value }} ready replicas vs spec."
+---
+# Grafana dashboard ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bootnode-grafana-dashboard
+  namespace: bootnode
+  labels:
+    grafana_dashboard: "1"
+data:
+  bootnode-overview.json: |
+    {
+      "dashboard": {
+        "title": "Bootnode Overview",
+        "uid": "bootnode-overview",
+        "timezone": "utc",
+        "refresh": "30s",
+        "time": {"from": "now-6h", "to": "now"},
+        "templating": {
+          "list": [
+            {"name": "ds_datastore", "type": "datasource", "query": "grafana-clickhouse-datasource", "current": {"text": "ClickHouse", "value": "ClickHouse"}},
+            {"name": "ds_prometheus", "type": "datasource", "query": "prometheus", "current": {"text": "Prometheus", "value": "Prometheus"}}
+          ]
+        },
+        "panels": [
+          {
+            "title": "RPC Requests/sec",
+            "type": "stat",
+            "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+            "targets": [{
+              "datasource": {"uid": "${ds_datastore}"},
+              "rawSql": "SELECT count() / 300 AS rps FROM bootnode.api_usage WHERE timestamp >= now() - INTERVAL 5 MINUTE",
+              "format": "table"
+            }]
+          },
+          {
+            "title": "Latency p50 / p95 / p99",
+            "type": "stat",
+            "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+            "targets": [{
+              "datasource": {"uid": "${ds_datastore}"},
+              "rawSql": "SELECT quantile(0.50)(response_time_ms) AS p50, quantile(0.95)(response_time_ms) AS p95, quantile(0.99)(response_time_ms) AS p99 FROM bootnode.api_usage WHERE timestamp >= now() - INTERVAL 5 MINUTE",
+              "format": "table"
+            }]
+          },
+          {
+            "title": "Error Rate",
+            "type": "gauge",
+            "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+            "targets": [{
+              "datasource": {"uid": "${ds_datastore}"},
+              "rawSql": "SELECT countIf(status_code >= 500) / greatest(count(), 1) * 100 AS error_pct FROM bootnode.api_usage WHERE timestamp >= now() - INTERVAL 5 MINUTE",
+              "format": "table"
+            }],
+            "fieldConfig": {"defaults": {"max": 100, "min": 0, "unit": "percent", "thresholds": {"steps": [{"value": 0, "color": "green"}, {"value": 1, "color": "yellow"}, {"value": 5, "color": "red"}]}}}
+          },
+          {
+            "title": "Total Requests (24h)",
+            "type": "stat",
+            "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+            "targets": [{
+              "datasource": {"uid": "${ds_datastore}"},
+              "rawSql": "SELECT count() AS total FROM bootnode.api_usage WHERE timestamp >= now() - INTERVAL 24 HOUR",
+              "format": "table"
+            }]
+          },
+          {
+            "title": "Requests Over Time",
+            "type": "timeseries",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+            "targets": [{
+              "datasource": {"uid": "${ds_datastore}"},
+              "rawSql": "SELECT toStartOfMinute(timestamp) AS time, count() AS requests, countIf(status_code >= 500) AS errors FROM bootnode.api_usage WHERE timestamp >= now() - INTERVAL 6 HOUR GROUP BY time ORDER BY time",
+              "format": "time_series"
+            }]
+          },
+          {
+            "title": "Latency Over Time",
+            "type": "timeseries",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+            "targets": [{
+              "datasource": {"uid": "${ds_datastore}"},
+              "rawSql": "SELECT toStartOfMinute(timestamp) AS time, quantile(0.50)(response_time_ms) AS p50, quantile(0.95)(response_time_ms) AS p95, quantile(0.99)(response_time_ms) AS p99 FROM bootnode.api_usage WHERE timestamp >= now() - INTERVAL 6 HOUR GROUP BY time ORDER BY time",
+              "format": "time_series"
+            }]
+          },
+          {
+            "title": "OTEL Traces (Bootnode)",
+            "type": "timeseries",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+            "targets": [{
+              "datasource": {"uid": "${ds_datastore}"},
+              "rawSql": "SELECT toStartOfMinute(Timestamp) AS time, count() AS spans, countIf(StatusCode = 'STATUS_CODE_ERROR') AS errors FROM otel.otel_traces WHERE ServiceName = 'bootnode-api' AND Timestamp >= now() - INTERVAL 6 HOUR GROUP BY time ORDER BY time",
+              "format": "time_series"
+            }]
+          },
+          {
+            "title": "OTEL Trace Latency (p50/p95/p99)",
+            "type": "timeseries",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+            "targets": [{
+              "datasource": {"uid": "${ds_datastore}"},
+              "rawSql": "SELECT toStartOfMinute(Timestamp) AS time, quantile(0.50)(Duration / 1000000) AS p50_ms, quantile(0.95)(Duration / 1000000) AS p95_ms, quantile(0.99)(Duration / 1000000) AS p99_ms FROM otel.otel_traces WHERE ServiceName = 'bootnode-api' AND SpanKind = 'SPAN_KIND_SERVER' AND Timestamp >= now() - INTERVAL 6 HOUR GROUP BY time ORDER BY time",
+              "format": "time_series"
+            }]
+          },
+          {
+            "title": "Top Endpoints (Usage)",
+            "type": "table",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+            "targets": [{
+              "datasource": {"uid": "${ds_datastore}"},
+              "rawSql": "SELECT endpoint, count() AS calls, round(avg(response_time_ms), 1) AS avg_ms, round(quantile(0.95)(response_time_ms), 1) AS p95_ms, sum(compute_units) AS total_cu FROM bootnode.api_usage WHERE timestamp >= now() - INTERVAL 24 HOUR GROUP BY endpoint ORDER BY calls DESC LIMIT 20",
+              "format": "table"
+            }]
+          },
+          {
+            "title": "OTEL Logs (Errors)",
+            "type": "table",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
+            "targets": [{
+              "datasource": {"uid": "${ds_datastore}"},
+              "rawSql": "SELECT Timestamp, SeverityText, Body FROM otel.otel_logs WHERE ServiceName = 'bootnode-api' AND SeverityNumber >= 17 AND Timestamp >= now() - INTERVAL 1 HOUR ORDER BY Timestamp DESC LIMIT 50",
+              "format": "table"
+            }]
+          },
+          {
+            "title": "Fleet Health",
+            "type": "stat",
+            "gridPos": {"h": 4, "w": 12, "x": 0, "y": 28},
+            "targets": [{
+              "datasource": {"uid": "${ds_prometheus}"},
+              "expr": "sum(kube_deployment_status_replicas_available{namespace=\"bootnode\"}) / sum(kube_deployment_spec_replicas{namespace=\"bootnode\"}) * 100"
+            }],
+            "fieldConfig": {"defaults": {"unit": "percent", "thresholds": {"steps": [{"value": 0, "color": "red"}, {"value": 80, "color": "yellow"}, {"value": 95, "color": "green"}]}}}
+          },
+          {
+            "title": "Validator Fleet Health",
+            "type": "stat",
+            "gridPos": {"h": 4, "w": 12, "x": 12, "y": 28},
+            "targets": [{
+              "datasource": {"uid": "${ds_prometheus}"},
+              "expr": "sum(kube_statefulset_status_replicas_ready{namespace=~\"lux-.*\"}) / sum(kube_statefulset_spec_replicas{namespace=~\"lux-.*\"}) * 100"
+            }],
+            "fieldConfig": {"defaults": {"unit": "percent", "thresholds": {"steps": [{"value": 0, "color": "red"}, {"value": 80, "color": "yellow"}, {"value": 95, "color": "green"}]}}}
+          }
+        ]
+      }
+    }

@@ -1,4 +1,4 @@
-"""DataStore (ClickHouse) client for high-performance analytics."""
+"""DataStore client for high-performance analytics."""
 
 from .client import DataStoreClient, datastore_client
 from .queries import (

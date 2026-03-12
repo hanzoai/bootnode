@@ -1,0 +1,9 @@
+{{- $network := index .Values.networks .Values.network }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.genesis.configMapName }}
+  namespace: {{ $network.namespace }}
+data:
+  genesis.json: |
+    {{- .Files.Get (printf "genesis/%s.json" .Values.network) | nindent 4 }}

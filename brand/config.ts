@@ -110,9 +110,9 @@ export const hanzoWeb3: BrandConfig = {
     },
     zoo: {
       name: "Zoo Labs",
-      domain: "zoo.id",
+      domain: "id.zoo.network",
       color: "#00cc66",
-      iam: "https://zoo.id",
+      iam: "https://id.zoo.network",
     },
     lux: {
       name: "Lux Network",
@@ -196,9 +196,9 @@ export const luxCloud: BrandConfig = {
     },
     zoo: {
       name: "Zoo Labs",
-      domain: "zoo.id",
+      domain: "id.zoo.network",
       color: "#00cc66",
-      iam: "https://zoo.id",
+      iam: "https://id.zoo.network",
     },
     lux: {
       name: "Lux Network",
