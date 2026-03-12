@@ -109,11 +109,13 @@ jobs:
             kubectl delete $old -n bootnode --ignore-not-found
           done
 
-      # --- lux-k8s cluster ---
+      # --- lux-k8s cluster (optional — needs LUX_K8S_CLUSTER_NAME secret) ---
       - name: Save kubeconfig (lux-k8s)
+        if: ${{ secrets.LUX_K8S_CLUSTER_NAME != '' }}
         run: doctl kubernetes cluster kubeconfig save ${{ secrets.LUX_K8S_CLUSTER_NAME }}
 
       - name: Deploy operator to lux-k8s
+        if: ${{ secrets.LUX_K8S_CLUSTER_NAME != '' }}
         run: |
           kubectl apply -f infra/k8s/lux/crds.yaml
           kubectl apply -f infra/k8s/lux/rbac.yaml
