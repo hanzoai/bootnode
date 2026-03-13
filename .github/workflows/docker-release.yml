@@ -129,6 +129,17 @@ jobs:
           echo "::add-mask::${CLUSTER}"
           doctl kubernetes cluster kubeconfig save "${CLUSTER}"
 
+      - name: Refresh GHCR pull secret (bootnode-k8s)
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          kubectl create secret docker-registry ghcr-secret \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password="${GHCR_TOKEN}" \
+            -n bootnode \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Apply manifests (bootnode-k8s)
         run: |
           kubectl apply -f infra/k8s/namespace.yaml
@@ -143,6 +154,14 @@ jobs:
         run: |
           kubectl rollout restart deployment/bootnode-api -n bootnode
           kubectl rollout status deployment/bootnode-api -n bootnode --timeout=300s
+
+      - name: Cleanup stale pods (bootnode-k8s)
+        run: |
+          # Delete pods stuck in ImagePullBackOff/ErrImagePull from previous failed rollouts
+          for pod in $(kubectl get pods -n bootnode --field-selector status.phase=Pending -o name 2>/dev/null); do
+            echo "Deleting stale $pod"
+            kubectl delete "$pod" -n bootnode --force --grace-period=0 2>/dev/null || true
+          done
 
       - name: Rollout web portals (bootnode-k8s)
         run: |
