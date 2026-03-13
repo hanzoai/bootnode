@@ -63,6 +63,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
       # Fetch deploy credentials from Hanzo KMS (only Universal Auth creds in GitHub Secrets)
       - name: Fetch deploy credentials from KMS
         id: kms
