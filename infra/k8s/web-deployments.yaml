@@ -55,23 +55,27 @@ spec:
               value: "iam"
           resources:
             requests:
-              cpu: "100m"
-              memory: "128Mi"
+              cpu: "200m"
+              memory: "256Mi"
             limits:
-              cpu: "500m"
-              memory: "512Mi"
+              cpu: "1000m"
+              memory: "1Gi"
           livenessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 5
           readinessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
           securityContext:
             runAsNonRoot: true
             runAsUser: 1001
@@ -147,23 +151,27 @@ spec:
               value: "iam"
           resources:
             requests:
-              cpu: "100m"
-              memory: "128Mi"
+              cpu: "200m"
+              memory: "256Mi"
             limits:
-              cpu: "500m"
-              memory: "512Mi"
+              cpu: "1000m"
+              memory: "1Gi"
           livenessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 5
           readinessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
           securityContext:
             runAsNonRoot: true
             runAsUser: 1001
@@ -239,23 +247,27 @@ spec:
               value: "iam"
           resources:
             requests:
-              cpu: "100m"
-              memory: "128Mi"
+              cpu: "200m"
+              memory: "256Mi"
             limits:
-              cpu: "500m"
-              memory: "512Mi"
+              cpu: "1000m"
+              memory: "1Gi"
           livenessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 5
           readinessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
           securityContext:
             runAsNonRoot: true
             runAsUser: 1001
@@ -331,23 +343,27 @@ spec:
               value: "iam"
           resources:
             requests:
-              cpu: "100m"
-              memory: "128Mi"
+              cpu: "200m"
+              memory: "256Mi"
             limits:
-              cpu: "500m"
-              memory: "512Mi"
+              cpu: "1000m"
+              memory: "1Gi"
           livenessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 5
           readinessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
           securityContext:
             runAsNonRoot: true
             runAsUser: 1001
