@@ -151,6 +151,27 @@ jobs:
             kubectl rollout status deployment/bootnode-web-${brand} -n bootnode --timeout=300s || true
           done
 
+      - name: Diagnose pod failures (bootnode-k8s)
+        if: always()
+        run: |
+          echo "=== Pod status ==="
+          kubectl get pods -n bootnode -l component=frontend -o wide 2>/dev/null || true
+          echo ""
+          echo "=== Recent events ==="
+          kubectl get events -n bootnode --sort-by='.lastTimestamp' --field-selector type!=Normal 2>/dev/null | tail -30 || true
+          echo ""
+          echo "=== Failing pod logs (last 50 lines) ==="
+          for pod in $(kubectl get pods -n bootnode -l component=frontend --field-selector status.phase!=Running -o name 2>/dev/null | head -3); do
+            echo "--- $pod ---"
+            kubectl logs "$pod" -n bootnode --tail=50 2>/dev/null || true
+          done
+          echo ""
+          echo "=== Describe failing pods ==="
+          for pod in $(kubectl get pods -n bootnode -l component=frontend -o json 2>/dev/null | jq -r '.items[] | select(.status.phase != "Running" or (.status.containerStatuses[]? | .ready != true)) | .metadata.name' 2>/dev/null | head -3); do
+            echo "--- $pod ---"
+            kubectl describe pod "$pod" -n bootnode 2>/dev/null | grep -A5 "State:\|Reason:\|Message:\|Events:" || true
+          done
+
       - name: Cleanup legacy deployments (bootnode-k8s)
         run: |
           for old in $(kubectl get deployments -n bootnode -o name | grep 'web3-platform'); do
