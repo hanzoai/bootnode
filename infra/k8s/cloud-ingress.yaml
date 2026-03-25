@@ -5,12 +5,10 @@ metadata:
   namespace: hanzo
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/buffering.maxrequestbodybytes: "52428800"
 spec:
-  ingressClassName: nginx
+  ingressClassName: hanzo
   rules:
     - host: cloud.hanzo.ai
       http:

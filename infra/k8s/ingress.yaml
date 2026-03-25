@@ -9,14 +9,11 @@ metadata:
   name: bootnode-hanzo-ingress
   namespace: bootnode
   annotations:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: hanzo
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: hanzo
   tls:
     - hosts:
         - web3.hanzo.ai
@@ -50,15 +47,11 @@ metadata:
   name: bootnode-hanzo-ws-ingress
   namespace: bootnode
   annotations:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: hanzo
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
-    nginx.ingress.kubernetes.io/websocket-services: "bootnode-api"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: hanzo
   tls:
     - hosts:
         - ws.web3.hanzo.ai
@@ -82,14 +75,11 @@ metadata:
   name: bootnode-lux-ingress
   namespace: bootnode
   annotations:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: hanzo
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: hanzo
   tls:
     - hosts:
         - web3.lux.network
@@ -123,15 +113,11 @@ metadata:
   name: bootnode-lux-ws-ingress
   namespace: bootnode
   annotations:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: hanzo
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
-    nginx.ingress.kubernetes.io/websocket-services: "bootnode-api"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: hanzo
   tls:
     - hosts:
         - ws.web3.lux.network
@@ -155,14 +141,11 @@ metadata:
   name: bootnode-zoo-ingress
   namespace: bootnode
   annotations:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: hanzo
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: hanzo
   tls:
     - hosts:
         - web3.zoo.ngo
@@ -196,15 +179,11 @@ metadata:
   name: bootnode-zoo-ws-ingress
   namespace: bootnode
   annotations:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: hanzo
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
-    nginx.ingress.kubernetes.io/websocket-services: "bootnode-api"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: hanzo
   tls:
     - hosts:
         - ws.web3.zoo.ngo
@@ -228,14 +207,11 @@ metadata:
   name: bootnode-pars-ingress
   namespace: bootnode
   annotations:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: hanzo
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: hanzo
   tls:
     - hosts:
         - web3.pars.id
@@ -269,15 +245,11 @@ metadata:
   name: bootnode-pars-ws-ingress
   namespace: bootnode
   annotations:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: hanzo
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
-    nginx.ingress.kubernetes.io/websocket-services: "bootnode-api"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: hanzo
   tls:
     - hosts:
         - ws.web3.pars.id
@@ -301,14 +273,11 @@ metadata:
   name: bootnode-brand-ingress
   namespace: bootnode
   annotations:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: hanzo
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: hanzo
   tls:
     - hosts:
         - bootno.de
@@ -342,15 +311,11 @@ metadata:
   name: bootnode-brand-ws-ingress
   namespace: bootnode
   annotations:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: hanzo
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
-    nginx.ingress.kubernetes.io/websocket-services: "bootnode-api"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: hanzo
   tls:
     - hosts:
         - ws.bootno.de
@@ -374,11 +339,11 @@ metadata:
   name: bootnode-docs-ingress
   namespace: bootnode
   annotations:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: hanzo
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: hanzo
   tls:
     - hosts:
         - docs.bootno.de
@@ -402,14 +367,11 @@ metadata:
   name: bootnode-lux-cloud-ingress
   namespace: bootnode
   annotations:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: hanzo
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: hanzo
   tls:
     - hosts:
         - cloud.lux.network
@@ -444,12 +406,11 @@ metadata:
   name: bootnode-lux-build-ingress
   namespace: bootnode
   annotations:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: hanzo
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
-  ingressClassName: nginx
+  ingressClassName: hanzo
   tls:
     - hosts:
         - lux.build

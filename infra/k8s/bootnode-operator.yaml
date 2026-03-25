@@ -533,11 +533,10 @@ spec:
       enabled: true
   ingress:
     enabled: true
-    className: "nginx"
+    className: "hanzo"
     annotations:
       cert-manager.io/cluster-issuer: "letsencrypt-prod"
-      nginx.ingress.kubernetes.io/rate-limit: "1000"
-      nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+      traefik.ingress.kubernetes.io/router.tls: "true"
     hosts:
       - host: api.bootno.de
         paths:
