@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { headers } from "next/headers"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -16,12 +17,23 @@ const brands: Record<string, { name: string; tagline: string; domain: string; ic
   zoo: { name: "Zoo Labs", tagline: "Decentralized AI Infrastructure", domain: "web3.zoo.ngo", icon: "/logo/zoo-icon.svg", defaultTheme: "dark" },
 }
 
-function getServerBrandKey() {
-  return (process.env.BRAND || process.env.NEXT_PUBLIC_BRAND || "bootnode").toLowerCase()
+// Detect brand from Host header first, then BRAND env var, then fallback.
+// IMPORTANT: Do NOT use NEXT_PUBLIC_BRAND here -- it gets inlined at build time
+// by Next.js and would always resolve to the Dockerfile default ("bootnode").
+function getServerBrandKeyFromHost(host: string | null): string {
+  if (host) {
+    if (host.includes("lux.network") || host.includes("lux.cloud")) return "lux"
+    if (host.includes("pars.network") || host.includes("pars.id")) return "pars"
+    if (host.includes("zoo.ngo") || host.includes("zoo.network")) return "zoo"
+    if (host.includes("hanzo.ai")) return "hanzo"
+    if (host.includes("bootno.de") || host.includes("bootnode.io")) return "bootnode"
+  }
+  return (process.env.BRAND || "bootnode").toLowerCase()
 }
 
 function getServerBrand() {
-  const key = getServerBrandKey()
+  // Used only by RootLayout (non-async). Falls back to BRAND env var.
+  const key = (process.env.BRAND || "bootnode").toLowerCase()
   return brands[key] || brands.bootnode
 }
 
@@ -29,7 +41,11 @@ function getServerBrand() {
 export const dynamic = "force-dynamic"
 
 export async function generateMetadata(): Promise<Metadata> {
-  const b = getServerBrand()
+  // Calling headers() forces Next.js to evaluate this at request time, never at build time.
+  const hdrs = await headers()
+  const host = hdrs.get("host")
+  const key = getServerBrandKeyFromHost(host)
+  const b = brands[key] || brands.bootnode
   return {
     title: {
       default: `${b.name} - ${b.tagline}`,
