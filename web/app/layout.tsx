@@ -24,7 +24,7 @@ function getServerBrandKeyFromHost(host: string | null): string {
   if (host) {
     if (host.includes("lux.network") || host.includes("lux.cloud")) return "lux"
     if (host.includes("pars.network") || host.includes("pars.id")) return "pars"
-    if (host.includes("zoo.ngo") || host.includes("zoo.network")) return "zoo"
+    if (host.includes("zoo.ngo") || host.includes("zoo.network") || host.includes("zoo.cloud")) return "zoo"
     if (host.includes("hanzo.ai")) return "hanzo"
     if (host.includes("bootno.de") || host.includes("bootnode.io")) return "bootnode"
   }
