@@ -265,7 +265,7 @@ function getBrandKey(): string {
     const hostname = window.location.hostname
     if (hostname.includes("lux.cloud") || hostname.includes("lux.network")) return "lux"
     if (hostname.includes("pars.network") || hostname.includes("pars.id")) return "pars"
-    if (hostname.includes("zoo.ngo") || hostname.includes("zoo.network")) return "zoo"
+    if (hostname.includes("zoo.ngo") || hostname.includes("zoo.network") || hostname.includes("zoo.cloud")) return "zoo"
     if (hostname.includes("hanzo.ai")) return "hanzo"
     if (hostname.includes("bootno.de") || hostname.includes("bootnode.io")) return "bootnode"
   }

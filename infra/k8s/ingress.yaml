@@ -150,9 +150,31 @@ spec:
     - hosts:
         - web3.zoo.ngo
         - api.web3.zoo.ngo
+        - zoo.cloud
+        - www.zoo.cloud
       secretName: bootnode-zoo-tls
   rules:
     - host: web3.zoo.ngo
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-web-zoo
+                port:
+                  number: 3001
+    - host: zoo.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bootnode-web-zoo
+                port:
+                  number: 3001
+    - host: www.zoo.cloud
       http:
         paths:
           - path: /
