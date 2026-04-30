@@ -15,6 +15,7 @@ import {
   RotateCw,
 } from "lucide-react"
 import { useBrand } from "@/components/brand-logo"
+import { getBrandKey_ } from "@/lib/brand"
 
 interface ChatMessage {
   role: "user" | "assistant"
@@ -80,15 +81,17 @@ export function AiChat({
         content: m.content,
       }))
 
+      const tokenKey = `${getBrandKey_()}_token`
+      const apiKeyKey = `${getBrandKey_()}_api_key`
       const res = await fetch("/api/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(typeof localStorage !== "undefined" && localStorage.getItem("bootnode_token")
-            ? { Authorization: `Bearer ${localStorage.getItem("bootnode_token")}` }
+          ...(typeof localStorage !== "undefined" && localStorage.getItem(tokenKey)
+            ? { Authorization: `Bearer ${localStorage.getItem(tokenKey)}` }
             : {}),
-          ...(typeof localStorage !== "undefined" && localStorage.getItem("bootnode_api_key")
-            ? { "X-API-Key": localStorage.getItem("bootnode_api_key")! }
+          ...(typeof localStorage !== "undefined" && localStorage.getItem(apiKeyKey)
+            ? { "X-API-Key": localStorage.getItem(apiKeyKey)! }
             : {}),
         },
         body: JSON.stringify({

@@ -21,10 +21,12 @@ import {
   Zap,
 } from "lucide-react"
 import { getBrand } from "@/lib/brand"
+import { getSdkPackage } from "@/lib/sdk-package"
 import { docsConfig } from "@/lib/docs-config"
 
 export default function WalletsProductPage() {
   const brand = getBrand()
+  const { pkg: sdkPackage, client: sdkClient } = getSdkPackage()
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -171,9 +173,9 @@ export default function WalletsProductPage() {
             <div className="flex flex-col gap-4">
               <CodeBlock
                 title="TypeScript"
-                code={`import { BootnodeClient } from "@bootnode/sdk";
+                code={`import { ${sdkClient} } from "${sdkPackage}";
 
-const client = new BootnodeClient({
+const client = new ${sdkClient}({
   apiKey: "${docsConfig.apiKeyPrefix}YOUR_API_KEY",
   chain: "base",
 });

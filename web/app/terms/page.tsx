@@ -226,14 +226,14 @@ export default function TermsPage() {
               <div>
                 <h2 className="text-xl font-semibold text-foreground">10. Limitation of Liability</h2>
                 <p className="mt-3">
-                  TO THE MAXIMUM EXTENT PERMITTED BY LAW, BOOTNODE SHALL NOT BE LIABLE FOR
+                  TO THE MAXIMUM EXTENT PERMITTED BY LAW, {brand.name.toUpperCase()} SHALL NOT BE LIABLE FOR
                   ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES,
                   INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, DATA, OR BUSINESS
                   OPPORTUNITIES, ARISING FROM OR RELATED TO YOUR USE OF THE SERVICE.
                 </p>
                 <p className="mt-3">
                   OUR TOTAL AGGREGATE LIABILITY FOR ALL CLAIMS ARISING FROM OR RELATED TO
-                  THE SERVICE SHALL NOT EXCEED THE AMOUNT YOU PAID TO BOOTNODE IN THE TWELVE
+                  THE SERVICE SHALL NOT EXCEED THE AMOUNT YOU PAID TO {brand.name.toUpperCase()} IN THE TWELVE
                   (12) MONTHS PRECEDING THE CLAIM.
                 </p>
                 <p className="mt-3">

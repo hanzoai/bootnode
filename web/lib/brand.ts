@@ -238,9 +238,9 @@ const brands: Record<string, BrandConfig> = {
       github: "https://github.com/zoolabs",
     },
     iam: {
-      url: "https://id.zoo.network",
+      url: "https://zoolabs.id",
       clientId: "zoo-app-client-id",
-      domain: "id.zoo.network",
+      domain: "zoolabs.id",
     },
     footerLinks: [
       { name: "Zoo Labs", href: "https://zoo.ngo", external: true },

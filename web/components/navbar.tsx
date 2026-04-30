@@ -39,6 +39,7 @@ import { BrandLogo } from "@/components/brand-logo"
 import { CommandMenu } from "@/components/command-menu"
 import { NavMenu } from "@/components/nav-menu"
 import { getBrand } from "@/lib/brand"
+import { getSdkPackage } from "@/lib/sdk-package"
 
 // Reusable icon link for mega-menu items
 function IconLink({
@@ -74,6 +75,7 @@ function IconLink({
 // Products mega-menu content
 function ProductsContent({ closeMenu }: { closeMenu: () => void }) {
   const brand = getBrand()
+  const { pkg: sdkPackage } = getSdkPackage()
   return (
     <div className="w-full">
       {/* Featured hero cards */}
@@ -214,7 +216,7 @@ function ProductsContent({ closeMenu }: { closeMenu: () => void }) {
       <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="rounded-md px-2.5 py-1 font-mono text-[10px] bg-secondary text-foreground">
-            npm i @bootnode/sdk
+            {`npm i ${sdkPackage}`}
           </div>
           <span className="text-[10px] text-muted-foreground">
             Install {brand.name} SDK

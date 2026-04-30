@@ -1,6 +1,8 @@
 // DOKS (DigitalOcean Kubernetes Service) region coordinates and types
 // Used by fleet-map.tsx to position validator nodes on the world map
 
+import { getBrandKey_ } from "@/lib/brand"
+
 export interface DOKSRegion {
   name: string
   lat: number
@@ -64,8 +66,9 @@ export function fleetStatusToNodeStatus(s: LuxFleet["status"]): NodeStatus {
 /** Auth headers for API calls -- matches existing pattern in infrastructure/page.tsx */
 export function getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {}
-  const token = localStorage.getItem("bootnode_token")
-  const apiKey = localStorage.getItem("bootnode_api_key")
+  const brand = getBrandKey_()
+  const token = localStorage.getItem(`${brand}_token`)
+  const apiKey = localStorage.getItem(`${brand}_api_key`)
   if (token) return { Authorization: `Bearer ${token}` }
   if (apiKey) return { "X-API-Key": apiKey }
   return {}
