@@ -28,6 +28,8 @@ jobs:
       - run: echo "CI passed — proceeding with Docker build"
 
   # Build API image via standard Hanzo reusable workflow
+  # NOTE: pushed under the `bootnode` package with `-api` tag suffix so it
+  # doesn't collide with web's tags in the same package.
   api:
     needs: gate
     uses: hanzoai/.github/.github/workflows/docker-build.yml@main
@@ -36,15 +38,21 @@ jobs:
       context: ./api
       dockerfile: Dockerfile
       platforms: "linux/amd64"
+      tag-suffix: -api
     secrets: inherit
 
   # Build Web image via standard Hanzo reusable workflow
+  # NOTE: pushed under the `bootnode` package (not `bootnode-web`) with `web-`
+  # tag prefix because GHCR auto-creation of `bootnode-web` package fails 403
+  # when the GH org has no policy allowing first-push package creation.
+  # Deployment image: ghcr.io/hanzoai/bootnode:web-<sha>|web-latest
   web:
     needs: gate
     uses: hanzoai/.github/.github/workflows/docker-build.yml@main
     with:
-      image: ghcr.io/hanzoai/bootnode-web
+      image: ghcr.io/hanzoai/bootnode
       context: ./web
       dockerfile: Dockerfile
       platforms: "linux/amd64"
+      tag-suffix: -web
     secrets: inherit
