@@ -1,0 +1,36 @@
+<svg width="64" height="64" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Zoo brand mark: three-circle CMYK Venn diagram. Icon variant. -->
+  <defs>
+    <clipPath id="logoClip">
+      <circle cx="512" cy="511" r="500"/>
+    </clipPath>
+    <clipPath id="logoYellow">
+      <circle cx="512" cy="250" r="430"/>
+    </clipPath>
+    <clipPath id="logoMagenta">
+      <circle cx="240" cy="670" r="430"/>
+    </clipPath>
+    <clipPath id="logoCyan">
+      <circle cx="784" cy="670" r="430"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#logoClip)">
+    <circle cx="512" cy="250" r="430" fill="#FCF006"/>
+    <circle cx="240" cy="670" r="430" fill="#EA018E"/>
+    <circle cx="784" cy="670" r="430" fill="#01ACF1"/>
+    <g clip-path="url(#logoYellow)">
+      <circle cx="240" cy="670" r="430" fill="#ED1C24"/>
+    </g>
+    <g clip-path="url(#logoYellow)">
+      <circle cx="784" cy="670" r="430" fill="#00A652"/>
+    </g>
+    <g clip-path="url(#logoMagenta)">
+      <circle cx="784" cy="670" r="430" fill="#2E3192"/>
+    </g>
+    <g clip-path="url(#logoYellow)">
+      <g clip-path="url(#logoMagenta)">
+        <circle cx="784" cy="670" r="430" fill="#000000"/>
+      </g>
+    </g>
+  </g>
+</svg>
