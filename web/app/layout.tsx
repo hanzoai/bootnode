@@ -17,10 +17,12 @@ const brands: Record<string, { name: string; tagline: string; domain: string; ic
   zoo: { name: "Zoo Labs", tagline: "Decentralized AI Infrastructure", domain: "web3.zoo.ngo", icon: "/logo/zoo-icon.svg", defaultTheme: "dark" },
 }
 
-// Detect brand from Host header first, then BRAND env var, then fallback.
-// IMPORTANT: Do NOT use NEXT_PUBLIC_BRAND here -- it gets inlined at build time
-// by Next.js and would always resolve to the Dockerfile default ("bootnode").
-function getServerBrandKeyFromHost(host: string | null): string {
+// Detect brand from Host header. Returns null when no host match (caller
+// then falls back to BRAND/NEXT_PUBLIC_BRAND env vars).
+// IMPORTANT: Do NOT bake the env-var fallback in here — `dynamic = "force-dynamic"`
+// makes layout requests runtime, so callers should read process.env directly
+// at request time and avoid relying on this helper for the env-var path.
+function getServerBrandKeyFromHost(host: string | null): string | null {
   if (host) {
     if (host.includes("lux.network") || host.includes("lux.cloud")) return "lux"
     if (host.includes("pars.network") || host.includes("pars.id")) return "pars"
@@ -28,12 +30,17 @@ function getServerBrandKeyFromHost(host: string | null): string {
     if (host.includes("hanzo.ai")) return "hanzo"
     if (host.includes("bootno.de") || host.includes("bootnode.io")) return "bootnode"
   }
-  return (process.env.BRAND || "bootnode").toLowerCase()
+  return null
 }
 
-function getServerBrand() {
-  // Used only by RootLayout (non-async). Falls back to BRAND env var.
-  const key = (process.env.BRAND || "bootnode").toLowerCase()
+async function getServerBrand() {
+  // Prefer Host header; fall back to BRAND or NEXT_PUBLIC_BRAND env vars.
+  // dynamic = "force-dynamic" plus headers() forces request-time evaluation,
+  // so process.env reads pick up runtime values, not the Dockerfile default.
+  const hdrs = await headers()
+  const host = hdrs.get("host")
+  const key = getServerBrandKeyFromHost(host) ||
+    (process.env.BRAND || process.env.NEXT_PUBLIC_BRAND || "bootnode").toLowerCase()
   return brands[key] || brands.bootnode
 }
 
@@ -44,7 +51,8 @@ export async function generateMetadata(): Promise<Metadata> {
   // Calling headers() forces Next.js to evaluate this at request time, never at build time.
   const hdrs = await headers()
   const host = hdrs.get("host")
-  const key = getServerBrandKeyFromHost(host)
+  const key = getServerBrandKeyFromHost(host) ||
+    (process.env.BRAND || process.env.NEXT_PUBLIC_BRAND || "bootnode").toLowerCase()
   const b = brands[key] || brands.bootnode
   return {
     title: {
@@ -75,12 +83,12 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const b = getServerBrand()
+  const b = await getServerBrand()
   return (
     <html
       lang="en"
