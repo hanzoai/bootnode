@@ -306,7 +306,7 @@ services:
   # Hanzo IAM - Identity and Access Management
   # Multi-tenant: hanzo.id, lux.id, zoo.id, pars.id
   iam:
-    image: ghcr.io/hanzoai/iam:latest
+    image: ghcr.io/hanzoai/iam:1.1000.1
     container_name: bootnode-iam
     restart: unless-stopped
     environment:
@@ -337,7 +337,7 @@ services:
   # Hanzo KMS - Secrets Management and Encryption
   # Enterprise secrets platform for secure key management
   kms:
-    image: ghcr.io/hanzoai/kms:latest
+    image: ghcr.io/hanzoai/kms:1.0.6
     container_name: bootnode-kms
     restart: unless-stopped
     environment:
@@ -396,7 +396,7 @@ services:
 
   # Hanzo Console (Cloud) - Admin dashboard with AI backend
   console:
-    image: ghcr.io/hanzoai/console:latest
+    image: ghcr.io/hanzoai/console:3.156.7
     container_name: bootnode-console
     restart: unless-stopped
     environment:
@@ -434,7 +434,7 @@ services:
 
   # Hanzo Console Worker - Background job processor
   console-worker:
-    image: ghcr.io/hanzoai/console:latest
+    image: ghcr.io/hanzoai/console:3.156.7
     container_name: bootnode-console-worker
     restart: unless-stopped
     command: ["node", "dist/worker.js"]
@@ -458,7 +458,7 @@ services:
   # Hanzo Commerce - Multi-tenant e-commerce platform
   # Serves: hanzo, lux, zoo, pars commerce needs
   commerce:
-    image: ghcr.io/hanzoai/commerce:latest
+    image: ghcr.io/hanzoai/commerce:1.42.3
     container_name: bootnode-commerce
     restart: unless-stopped
     environment:
@@ -493,7 +493,7 @@ services:
   # Hanzo Analytics - Multi-tenant analytics platform
   # Serves: hanzo, lux, zoo, pars analytics needs
   analytics:
-    image: ghcr.io/hanzoai/analytics:latest
+    image: ghcr.io/hanzoai/analytics:3.0.4
     container_name: bootnode-analytics
     restart: unless-stopped
     environment:
