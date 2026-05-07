@@ -17,6 +17,11 @@ concurrency:
   group: docker-${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
 jobs:
   # Gate: only proceed if CI passed (skip check for tags/manual)
   gate:
